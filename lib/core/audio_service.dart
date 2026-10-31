@@ -1,0 +1,386 @@
+import 'dart:async';
+import 'dart:io';
+import 'dart:math' as math;
+
+import 'package:audio_service/audio_service.dart' as media;
+import 'package:audio_session/audio_session.dart';
+import 'package:flutter/foundation.dart';
+import 'package:just_audio/just_audio.dart';
+
+import '../library/track_index.dart';
+import 'artwork_cache.dart';
+
+/// Reproductor de música local (solo archivos del dispositivo).
+///
+/// Es un singleton: todas las pantallas comparten cola, estado y notifiers.
+class AudioService {
+  static final AudioService _instance = AudioService._internal();
+
+  factory AudioService() => _instance;
+
+  AudioService._internal() {
+    _player.currentIndexStream.listen(_onIndexChanged);
+    _player.playbackEventStream.listen((event) {
+      if (event.processingState == ProcessingState.ready) {
+        _consecutiveErrors = 0;
+      }
+    }, onError: (Object error, StackTrace _) => _onPlayerError(error));
+    unawaited(_configureAudioSession());
+  }
+
+  static const int _artworkWindowBefore = 2;
+  static const int _artworkWindowAfter = 12;
+  static const int _maxConsecutiveErrors = 3;
+
+  final AudioPlayer _player = AudioPlayer();
+  final List<File> _queue = [];
+  ConcatenatingAudioSource? _source;
+  int _currentIndex = 0;
+  int _queueId = 0;
+  int _consecutiveErrors = 0;
+  bool _pauseWhenHeadphonesDisconnected = true;
+  StreamSubscription<void>? _becomingNoisySubscription;
+  Timer? _sleepTimer;
+
+  AudioPlayer get player => _player;
+  int get currentIndex => _currentIndex;
+  List<File> get playlistFiles => List.unmodifiable(_queue);
+
+  File? get currentFile =>
+      _currentIndex >= 0 && _currentIndex < _queue.length
+      ? _queue[_currentIndex]
+      : null;
+
+  /// Cola actual (para la pantalla "Cola").
+  final ValueNotifier<List<File>> queueNotifier = ValueNotifier<List<File>>(
+    <File>[],
+  );
+  /// Ruta del archivo que suena (distingue pistas con el mismo título).
+  final ValueNotifier<String?> currentPathNotifier = ValueNotifier<String?>(
+    null,
+  );
+  final ValueNotifier<String?> titleNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> artistNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<String?> albumNotifier = ValueNotifier<String?>(null);
+  final ValueNotifier<Uint8List?> artworkBytesNotifier =
+      ValueNotifier<Uint8List?>(null);
+  final ValueNotifier<String?> playbackErrorNotifier = ValueNotifier<String?>(
+    null,
+  );
+  final ValueNotifier<bool> shuffleNotifier = ValueNotifier<bool>(false);
+  final ValueNotifier<LoopMode> loopNotifier = ValueNotifier<LoopMode>(
+    LoopMode.off,
+  );
+  final ValueNotifier<double> speedNotifier = ValueNotifier<double>(1.0);
+
+  /// Hora a la que el temporizador de apagado pausará la música (`null` = off).
+  final ValueNotifier<DateTime?> sleepEndsAtNotifier =
+      ValueNotifier<DateTime?>(null);
+
+  bool get pauseWhenHeadphonesDisconnected => _pauseWhenHeadphonesDisconnected;
+
+  Future<void> setPauseWhenHeadphonesDisconnected(bool enabled) async {
+    _pauseWhenHeadphonesDisconnected = enabled;
+  }
+
+  Future<void> _configureAudioSession() async {
+    try {
+      final session = await AudioSession.instance;
+      await session.configure(const AudioSessionConfiguration.music());
+      _becomingNoisySubscription = session.becomingNoisyEventStream.listen((_) {
+        if (_pauseWhenHeadphonesDisconnected && _player.playing) {
+          unawaited(_player.pause());
+        }
+      });
+    } catch (error) {
+      debugPrint('No se pudo configurar la sesión de audio: $error');
+      playbackErrorNotifier.value =
+          'No se pudo configurar la sesión de audio: $error';
+    }
+  }
+
+  // ---------------------------------------------------------------- pista
+
+  media.MediaItem _itemFor(File file) {
+    final info = TrackIndex.instance.infoFor(file.path);
+    return media.MediaItem(
+      id: file.path,
+      title: info?.title ?? titleFromPath(file.path),
+      artist: info?.artistLabel ?? unknownArtistLabel,
+      album: info?.album,
+      artUri: ArtworkCache.uriFor(file.path),
+    );
+  }
+
+  AudioSource _sourceFor(File file) =>
+      AudioSource.uri(file.uri, tag: _itemFor(file));
+
+  void _onIndexChanged(int? index) {
+    if (index == null || index < 0 || index >= _queue.length) return;
+    _currentIndex = index;
+    _publishCurrent();
+  }
+
+  void _publishCurrent() {
+    final file = currentFile;
+    if (file == null) return;
+    final info =
+        TrackIndex.instance.infoFor(file.path) ?? TrackInfo.fromFile(file);
+    currentPathNotifier.value = file.path;
+    titleNotifier.value = info.title;
+    artistNotifier.value = info.artistLabel;
+    albumNotifier.value = info.album;
+    artworkBytesNotifier.value = null;
+    unawaited(_loadArtwork(file));
+  }
+
+  Future<void> _loadArtwork(File file) async {
+    final bytes = await ArtworkCache.bytesFor(file.path);
+    // Si mientras tanto cambió la pista, esta carátula ya no corresponde.
+    if (currentFile?.path == file.path) artworkBytesNotifier.value = bytes;
+  }
+
+  // ----------------------------------------------------------------- cola
+
+  /// Reemplaza la cola por [files] y empieza a reproducir `files[initialIndex]`.
+  Future<void> setPlaylistAndPlay(List<File> files, int initialIndex) async {
+    RangeError.checkValidIndex(initialIndex, files, 'initialIndex');
+    final queueId = ++_queueId;
+    _consecutiveErrors = 0;
+    playbackErrorNotifier.value = null;
+
+    try {
+      // Carátulas de las pistas cercanas a la inicial (rápido). El resto de la
+      // cola se prepara después, en segundo plano.
+      final from = math.max(0, initialIndex - _artworkWindowBefore);
+      final to = math.min(files.length, initialIndex + _artworkWindowAfter);
+      await ArtworkCache.ensure([
+        for (var i = from; i < to; i++) files[i].path,
+      ]);
+      if (queueId != _queueId) return; // otra reproducción tomó el control
+
+      _queue
+        ..clear()
+        ..addAll(files);
+      queueNotifier.value = List<File>.unmodifiable(_queue);
+      _currentIndex = initialIndex;
+      final source = ConcatenatingAudioSource(
+        children: [for (final file in files) _sourceFor(file)],
+      );
+      _source = source;
+      await _player.setAudioSource(source, initialIndex: initialIndex);
+      if (queueId != _queueId) return;
+
+      _publishCurrent();
+      // No usar `await _player.play()`: ese Future solo termina al pausar o
+      // acabar la reproducción.
+      unawaited(_startPlayback());
+      unawaited(
+        ArtworkCache.warm([
+          for (final file in files) file.path,
+        ], shouldContinue: () => queueId == _queueId),
+      );
+    } catch (error) {
+      if (queueId != _queueId) return;
+      debugPrint('No se pudo reproducir: $error');
+      playbackErrorNotifier.value = 'No se pudo reproducir: $error';
+    }
+  }
+
+  /// Reproduce [files] en orden aleatorio.
+  Future<void> playShuffled(List<File> files) async {
+    if (files.isEmpty) return;
+    await _player.setShuffleModeEnabled(true);
+    shuffleNotifier.value = true;
+    await setPlaylistAndPlay(files, math.Random().nextInt(files.length));
+  }
+
+  /// Pone [file] justo después de la pista actual.
+  Future<void> playNextInQueue(File file) => _insert(file, atEnd: false);
+
+  /// Añade [file] al final de la cola. Si no hay nada sonando, la reproduce.
+  Future<void> addToQueue(File file) => _insert(file, atEnd: true);
+
+  Future<void> _insert(File file, {required bool atEnd}) async {
+    final source = _source;
+    if (source == null || _queue.isEmpty) {
+      await setPlaylistAndPlay([file], 0);
+      return;
+    }
+    final queueId = _queueId;
+    await ArtworkCache.ensure([file.path]);
+    if (queueId != _queueId) return;
+
+    final index = atEnd
+        ? _queue.length
+        : math.min(_currentIndex + 1, _queue.length);
+    _queue.insert(index, file);
+    queueNotifier.value = List<File>.unmodifiable(_queue);
+    try {
+      await source.insert(index, _sourceFor(file));
+    } catch (error) {
+      if (queueId == _queueId) {
+        _queue.removeAt(index);
+        queueNotifier.value = List<File>.unmodifiable(_queue);
+      }
+      playbackErrorNotifier.value = 'No se pudo añadir a la cola: $error';
+    }
+  }
+
+  /// Quita una pista de la cola. Si era la última, se detiene la reproducción.
+  Future<void> removeFromQueue(int index) async {
+    final source = _source;
+    if (source == null || index < 0 || index >= _queue.length) return;
+    if (_queue.length == 1) {
+      await clearQueue();
+      return;
+    }
+    // La lista visible se actualiza antes del primer `await` para que
+    // `Dismissible` no se quede con un elemento fantasma.
+    _queue.removeAt(index);
+    queueNotifier.value = List<File>.unmodifiable(_queue);
+    try {
+      await source.removeAt(index);
+    } catch (error) {
+      debugPrint('No se pudo quitar de la cola: $error');
+    }
+  }
+
+  Future<void> clearQueue() async {
+    _queueId++;
+    _queue.clear();
+    _source = null;
+    queueNotifier.value = const <File>[];
+    currentPathNotifier.value = null;
+    titleNotifier.value = null;
+    artistNotifier.value = null;
+    albumNotifier.value = null;
+    artworkBytesNotifier.value = null;
+    await _player.stop();
+  }
+
+  Future<void> reorderQueue(int oldIndex, int newIndex) async {
+    final source = _source;
+    if (source == null ||
+        oldIndex < 0 ||
+        oldIndex >= _queue.length ||
+        newIndex < 0 ||
+        newIndex >= _queue.length ||
+        oldIndex == newIndex) {
+      return;
+    }
+    final file = _queue.removeAt(oldIndex);
+    _queue.insert(newIndex, file);
+    queueNotifier.value = List<File>.unmodifiable(_queue);
+    await source.move(oldIndex, newIndex);
+  }
+
+  Future<void> seekToQueueIndex(int index) async {
+    final length = _player.sequence?.length ?? 0;
+    if (index < 0 || index >= length) {
+      throw RangeError.range(index, 0, length - 1, 'index');
+    }
+    await _player.seek(Duration.zero, index: index);
+    unawaited(_startPlayback());
+  }
+
+  // ------------------------------------------------------------- control
+
+  Future<void> _startPlayback() async {
+    try {
+      await _player.play();
+    } catch (error) {
+      playbackErrorNotifier.value =
+          'No se pudo iniciar la reproducción: $error';
+    }
+  }
+
+  /// Un archivo ilegible (borrado, dañado, formato no soportado) no debe cortar
+  /// la cola: se avisa y se salta a la siguiente (máx. 3 fallos seguidos, para
+  /// no entrar en bucle con `LoopMode.all`).
+  void _onPlayerError(Object error) {
+    debugPrint('Error de reproducción: $error');
+    playbackErrorNotifier.value = null;
+    playbackErrorNotifier.value = 'No se pudo reproducir la pista: $error';
+    if (_queue.length < 2 ||
+        _consecutiveErrors >= _maxConsecutiveErrors ||
+        !_player.hasNext) {
+      return;
+    }
+    _consecutiveErrors++;
+    unawaited(
+      _player
+          .seekToNext()
+          .then((_) => _startPlayback())
+          .catchError((Object e) => debugPrint('No se pudo saltar: $e')),
+    );
+  }
+
+  Future<void> playPause() async {
+    if (_player.playing) {
+      await _player.pause();
+    } else {
+      await _player.play();
+    }
+  }
+
+  Future<void> playNext() async {
+    final length = _player.sequence?.length ?? 0;
+    if (length > 1) {
+      await _player.seekToNext();
+    } else if (length == 1) {
+      await _player.seek(Duration.zero);
+    }
+  }
+
+  Future<void> playPrevious() async {
+    final length = _player.sequence?.length ?? 0;
+    if (length > 1) {
+      await _player.seekToPrevious();
+    } else if (length == 1) {
+      await _player.seek(Duration.zero);
+    }
+  }
+
+  Future<void> toggleShuffle() async {
+    final enabled = !shuffleNotifier.value;
+    await _player.setShuffleModeEnabled(enabled);
+    shuffleNotifier.value = enabled;
+  }
+
+  Future<void> toggleLoop() async {
+    final nextMode = switch (loopNotifier.value) {
+      LoopMode.off => LoopMode.all,
+      LoopMode.all => LoopMode.one,
+      LoopMode.one => LoopMode.off,
+    };
+    await _player.setLoopMode(nextMode);
+    loopNotifier.value = nextMode;
+  }
+
+  Future<void> setSpeed(double speed) async {
+    await _player.setSpeed(speed);
+    speedNotifier.value = speed;
+  }
+
+  /// Pausa la música dentro de [duration]; `null` cancela el temporizador.
+  void setSleepTimer(Duration? duration) {
+    _sleepTimer?.cancel();
+    _sleepTimer = null;
+    if (duration == null) {
+      sleepEndsAtNotifier.value = null;
+      return;
+    }
+    sleepEndsAtNotifier.value = DateTime.now().add(duration);
+    _sleepTimer = Timer(duration, () {
+      _sleepTimer = null;
+      sleepEndsAtNotifier.value = null;
+      unawaited(_player.pause());
+    });
+  }
+
+  Future<void> pause() => _player.pause();
+  Future<void> resume() => _player.play();
+  Future<void> stop() => _player.stop();
+  Future<void> seek(Duration position) => _player.seek(position);
+}

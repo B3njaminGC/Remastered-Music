@@ -1,0 +1,446 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+
+import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+
+import '../core/audio_service.dart';
+import '../core/widgets/track_artwork.dart';
+import '../features/local/playlist_service.dart';
+import '../features/local/queue_screen.dart';
+import '../library/favorites_repository.dart';
+
+class NowPlayingScreen extends StatefulWidget {
+  const NowPlayingScreen({super.key});
+
+  @override
+  State<NowPlayingScreen> createState() => _NowPlayingScreenState();
+}
+
+class _NowPlayingScreenState extends State<NowPlayingScreen> {
+  static const List<int> _sleepOptionsMinutes = [15, 30, 45, 60, 90];
+  static const List<double> _speedOptions = [0.5, 0.75, 1.0, 1.25, 1.5, 2.0];
+
+  final AudioService _audio = AudioService();
+
+  /// Posición (en segundos) mientras el usuario arrastra el slider; evita
+  /// hacer un seek por cada pixel arrastrado.
+  double? _dragSeconds;
+
+  String _formatDuration(Duration? duration) {
+    if (duration == null) return '0:00';
+    final minutes = duration.inMinutes.toString();
+    final seconds = duration.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return '$minutes:$seconds';
+  }
+
+  String _formatClock(DateTime time) =>
+      '${time.hour.toString().padLeft(2, '0')}:'
+      '${time.minute.toString().padLeft(2, '0')}';
+
+  String _speedLabel(double speed) =>
+      speed == speed.roundToDouble() ? '${speed.toInt()}x' : '${speed}x';
+
+  Future<void> _addToPlaylist() async {
+    final file = _audio.currentFile;
+    if (file == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No hay una canción seleccionada.')),
+      );
+      return;
+    }
+    await showAddToPlaylistDialog(context, file);
+  }
+
+  Future<void> _showSleepTimerSheet() {
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ValueListenableBuilder<DateTime?>(
+          valueListenable: _audio.sleepEndsAtNotifier,
+          builder: (context, endsAt, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                title: const Text(
+                  'Temporizador de apagado',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                subtitle: Text(
+                  endsAt == null
+                      ? 'Pausa la música automáticamente.'
+                      : 'Se pausará a las ${_formatClock(endsAt)}.',
+                ),
+              ),
+              for (final minutes in _sleepOptionsMinutes)
+                ListTile(
+                  leading: const Icon(Icons.bedtime_outlined),
+                  title: Text('$minutes minutos'),
+                  onTap: () {
+                    _audio.setSleepTimer(Duration(minutes: minutes));
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+              if (endsAt != null)
+                ListTile(
+                  leading: const Icon(Icons.timer_off_outlined),
+                  title: const Text('Desactivar'),
+                  onTap: () {
+                    _audio.setSleepTimer(null);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showSpeedSheet() {
+    return showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: ValueListenableBuilder<double>(
+          valueListenable: _audio.speedNotifier,
+          builder: (context, current, _) => Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const ListTile(
+                title: Text(
+                  'Velocidad de reproducción',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+              ),
+              for (final speed in _speedOptions)
+                ListTile(
+                  title: Text(_speedLabel(speed)),
+                  trailing: speed == current
+                      ? const Icon(Icons.check, color: Colors.deepOrange)
+                      : null,
+                  onTap: () {
+                    _audio.setSpeed(speed);
+                    Navigator.of(sheetContext).pop();
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final audio = _audio;
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    final foreground = isDark ? Colors.white : Colors.black87;
+
+    return Scaffold(
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final artSize = math.min(constraints.maxWidth - 48, 380.0);
+            return SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(24, 4, 24, 24),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      IconButton(
+                        tooltip: 'Cola de reproducción',
+                        onPressed: () => Navigator.of(context).push<void>(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const QueueScreen(showAppBar: true),
+                          ),
+                        ),
+                        icon: const Icon(Icons.queue_music_rounded),
+                      ),
+                      ValueListenableBuilder<DateTime?>(
+                        valueListenable: audio.sleepEndsAtNotifier,
+                        builder: (context, endsAt, _) => IconButton(
+                          tooltip: endsAt == null
+                              ? 'Temporizador de apagado'
+                              : 'Se pausará a las ${_formatClock(endsAt)}',
+                          onPressed: _showSleepTimerSheet,
+                          icon: Icon(
+                            endsAt == null
+                                ? Icons.bedtime_outlined
+                                : Icons.bedtime,
+                            color: endsAt == null ? null : Colors.deepOrange,
+                          ),
+                        ),
+                      ),
+                      ValueListenableBuilder<double>(
+                        valueListenable: audio.speedNotifier,
+                        builder: (context, speed, _) => TextButton(
+                          onPressed: _showSpeedSheet,
+                          child: Text(
+                            _speedLabel(speed),
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: speed == 1.0
+                                  ? foreground
+                                  : Colors.deepOrange,
+                            ),
+                          ),
+                        ),
+                      ),
+                      PopupMenuButton<String>(
+                        tooltip: 'Opciones de reproducción',
+                        icon: const Icon(Icons.more_horiz, size: 30),
+                        onSelected: (_) => _addToPlaylist(),
+                        itemBuilder: (context) => const [
+                          PopupMenuItem(
+                            value: 'add',
+                            child: Text('Añadir a lista'),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ValueListenableBuilder<Uint8List?>(
+                    valueListenable: audio.artworkBytesNotifier,
+                    builder: (context, artworkBytes, _) => Container(
+                      width: artSize,
+                      height: artSize,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(24),
+                        boxShadow: [
+                          BoxShadow(
+                            color: isDark ? Colors.black54 : Colors.black12,
+                            blurRadius: 24,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: TrackArtwork(
+                        size: artSize,
+                        borderRadius: 24,
+                        artworkBytes: artworkBytes,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 28),
+                  ValueListenableBuilder<String?>(
+                    valueListenable: audio.titleNotifier,
+                    builder: (context, title, _) => Row(
+                      children: [
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                title ?? 'Sin reproducción',
+                                style: TextStyle(
+                                  fontSize: 22,
+                                  fontWeight: FontWeight.bold,
+                                  color: foreground,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 6),
+                              ValueListenableBuilder<String?>(
+                                valueListenable: audio.artistNotifier,
+                                builder: (context, artist, _) => Text(
+                                  artist ?? 'Selecciona una canción',
+                                  style: TextStyle(
+                                    color: isDark
+                                        ? Colors.grey[400]
+                                        : Colors.grey[700],
+                                    fontSize: 15,
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              ValueListenableBuilder<String?>(
+                                valueListenable: audio.albumNotifier,
+                                builder: (context, album, _) => album == null
+                                    ? const SizedBox.shrink()
+                                    : Padding(
+                                        padding: const EdgeInsets.only(top: 2),
+                                        child: Text(
+                                          album,
+                                          style: const TextStyle(
+                                            color: Colors.grey,
+                                            fontSize: 13,
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        ValueListenableBuilder<String?>(
+                          valueListenable: audio.currentPathNotifier,
+                          builder: (context, path, _) =>
+                              ValueListenableBuilder<Set<String>>(
+                                valueListenable:
+                                    FavoritesRepository.instance.paths,
+                                builder: (context, favorites, _) {
+                                  final isFavorite =
+                                      path != null && favorites.contains(path);
+                                  return IconButton(
+                                    tooltip: isFavorite
+                                        ? 'Quitar de favoritas'
+                                        : 'Añadir a favoritas',
+                                    onPressed: path == null
+                                        ? null
+                                        : () => FavoritesRepository.instance
+                                              .toggle(path),
+                                    icon: Icon(
+                                      isFavorite
+                                          ? Icons.favorite
+                                          : Icons.favorite_border,
+                                      color: isFavorite
+                                          ? Colors.deepOrange
+                                          : null,
+                                    ),
+                                  );
+                                },
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  StreamBuilder<Duration>(
+                    stream: audio.player.positionStream,
+                    builder: (context, snapshotPosition) {
+                      final position = snapshotPosition.data ?? Duration.zero;
+                      final duration = audio.player.duration ?? Duration.zero;
+                      final maxSeconds = math.max(
+                        duration.inSeconds.toDouble(),
+                        1.0,
+                      );
+                      final shownSeconds =
+                          (_dragSeconds ?? position.inSeconds.toDouble()).clamp(
+                            0.0,
+                            maxSeconds,
+                          );
+                      return Column(
+                        children: [
+                          Slider(
+                            value: shownSeconds,
+                            max: maxSeconds,
+                            activeColor: Colors.deepOrange,
+                            onChanged: (value) =>
+                                setState(() => _dragSeconds = value),
+                            onChangeEnd: (value) async {
+                              await audio.seek(Duration(seconds: value.toInt()));
+                              if (mounted) setState(() => _dragSeconds = null);
+                            },
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatDuration(
+                                    Duration(seconds: shownSeconds.toInt()),
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                Text(
+                                  _formatDuration(duration),
+                                  style: const TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 16),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      ValueListenableBuilder<bool>(
+                        valueListenable: audio.shuffleNotifier,
+                        builder: (context, isShuffle, _) => IconButton(
+                          tooltip: 'Aleatorio',
+                          icon: Icon(
+                            Icons.shuffle,
+                            color: isShuffle ? Colors.deepOrange : Colors.grey,
+                          ),
+                          onPressed: audio.toggleShuffle,
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Anterior',
+                        icon: Icon(
+                          Icons.skip_previous,
+                          size: 36,
+                          color: foreground,
+                        ),
+                        onPressed: audio.playPrevious,
+                      ),
+                      StreamBuilder<PlayerState>(
+                        stream: audio.player.playerStateStream,
+                        initialData: audio.player.playerState,
+                        builder: (context, snapshot) {
+                          final playing = snapshot.data?.playing ?? false;
+                          return CircleAvatar(
+                            radius: 32,
+                            backgroundColor: Colors.deepOrange,
+                            child: IconButton(
+                              tooltip: playing ? 'Pausar' : 'Reproducir',
+                              icon: Icon(
+                                playing ? Icons.pause : Icons.play_arrow,
+                                size: 36,
+                                color: Colors.white,
+                              ),
+                              onPressed: audio.playPause,
+                            ),
+                          );
+                        },
+                      ),
+                      IconButton(
+                        tooltip: 'Siguiente',
+                        icon: Icon(
+                          Icons.skip_next,
+                          size: 36,
+                          color: foreground,
+                        ),
+                        onPressed: audio.playNext,
+                      ),
+                      ValueListenableBuilder<LoopMode>(
+                        valueListenable: audio.loopNotifier,
+                        builder: (context, loopMode, _) => IconButton(
+                          tooltip: 'Repetir',
+                          icon: Icon(
+                            loopMode == LoopMode.one
+                                ? Icons.repeat_one
+                                : Icons.repeat,
+                            color: loopMode != LoopMode.off
+                                ? Colors.deepOrange
+                                : Colors.grey,
+                          ),
+                          onPressed: audio.toggleLoop,
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
