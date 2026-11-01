@@ -9,9 +9,14 @@ import '../core/widgets/track_artwork.dart';
 import '../features/local/playlist_service.dart';
 import '../features/local/queue_screen.dart';
 import '../library/favorites_repository.dart';
+import '../lyrics/lyrics_panel.dart';
 
 class NowPlayingScreen extends StatefulWidget {
-  const NowPlayingScreen({super.key});
+  const NowPlayingScreen({super.key, this.showBack = false});
+
+  /// `true` cuando se abre encima de la app (desde el mini reproductor): muestra
+  /// el botón para volver. Como pestaña, se vuelve con la barra inferior.
+  final bool showBack;
 
   @override
   State<NowPlayingScreen> createState() => _NowPlayingScreenState();
@@ -146,8 +151,17 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
               child: Column(
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
                     children: [
+                      if (widget.showBack)
+                        IconButton(
+                          tooltip: 'Volver',
+                          onPressed: () => Navigator.of(context).maybePop(),
+                          icon: const Icon(
+                            Icons.keyboard_arrow_down_rounded,
+                            size: 34,
+                          ),
+                        ),
+                      const Spacer(),
                       IconButton(
                         tooltip: 'Cola de reproducción',
                         onPressed: () => Navigator.of(context).push<void>(
@@ -435,6 +449,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                       ),
                     ],
                   ),
+                  const SizedBox(height: 28),
+                  LyricsPanel(foreground: foreground),
                 ],
               ),
             );

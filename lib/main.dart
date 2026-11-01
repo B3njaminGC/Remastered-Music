@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio_background/just_audio_background.dart';
@@ -14,6 +16,7 @@ import 'features/local/search_screen.dart';
 import 'library/favorites_repository.dart';
 import 'library/library_repository.dart';
 import 'library/track_index.dart';
+import 'lyrics/lyrics_service.dart';
 import 'screens/now_playing_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
@@ -33,6 +36,7 @@ Future<void> main() async {
     Error.throwWithStackTrace(error, stackTrace);
   }
   await ArtworkCache.init();
+  await LyricsService.instance.init();
   await JustAudioBackground.init(
     androidNotificationChannelId: 'com.example.play_music_app.audio',
     androidNotificationChannelName: 'Reproducción de música',
@@ -45,8 +49,12 @@ Future<void> main() async {
   await AudioService().setPauseWhenHeadphonesDisconnected(
     AppSettings.instance.pauseOnHeadphoneDisconnect,
   );
-  // El índice lee las etiquetas en segundo plano; la UI no espera por él.
+  // Etiquetas guardadas en disco: la biblioteca sale completa al abrir y solo
+  // se leen las canciones nuevas o modificadas (en segundo plano).
+  await TrackIndex.instance.loadCache();
   TrackIndex.instance.bind(LibraryRepository.instance.paths);
+  // Retoma la última canción y cola (en pausa).
+  unawaited(AudioService().restoreLastSession());
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
@@ -211,8 +219,9 @@ class _MainContainerState extends State<MainContainer> {
               SizedBox(height: 12),
               Text(
                 'Filosofía y Propósito:\n'
-                '• 100% offline y privado: tus archivos de audio viven en tu '
-                'dispositivo. Sin servidores, sin cuentas y sin recolección de datos.\n'
+                '• Offline y privado: tus archivos de audio viven en tu dispositivo. '
+                'Sin cuentas ni recolección de datos (la búsqueda de letras en '
+                'internet es opcional y se puede desactivar).\n'
                 '• Biblioteca por canciones, artistas, álbumes, favoritas y listas.\n'
                 '• Diseño Material Minimalista: interfaz fluida y adaptativa '
                 'pensada para un rendimiento óptimo en cualquier dispositivo Android.\n'
@@ -248,7 +257,14 @@ class _MainContainerState extends State<MainContainer> {
       QueueScreen(),
     ];
 
-    return Scaffold(
+    // Atrás desde cualquier pestaña vuelve al Inicio; solo desde el Inicio se
+    // sale de la app.
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _currentIndex = 0);
+      },
+      child: Scaffold(
       appBar: AppBar(
         title: const Text(
           'Reproductor FOSS',
@@ -351,6 +367,7 @@ class _MainContainerState extends State<MainContainer> {
           ],
         ),
       ),
+    ),
     );
   }
 }

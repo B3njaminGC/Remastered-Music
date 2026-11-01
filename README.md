@@ -1,6 +1,6 @@
 # Reproductor FOSS — música 100 % offline
 
-Reproductor de música para Android que lee los archivos de tu dispositivo. Sin cuentas, sin servidores, sin internet.
+Reproductor de música para Android que lee los archivos de tu dispositivo. Sin cuentas ni servidores; funciona sin internet (la búsqueda de letras en línea es opcional).
 
 ## Funciones
 - Biblioteca con pestañas: **Canciones · Favoritas · Listas · Artistas · Álbumes · Orígenes** (agrupados por las etiquetas del archivo).
@@ -10,6 +10,8 @@ Reproductor de música para Android que lee los archivos de tu dispositivo. Sin 
 - Cola de reproducción: *reproducir a continuación*, *añadir a la cola*, reordenar y quitar deslizando.
 - Reproductor con carátula, **temporizador de apagado**, **velocidad** (0.5x–2x), repetir y aleatorio.
 - Notificación y controles en segundo plano; pausa al desconectar auriculares; ecualizador del sistema.
+- **Letras** debajo del reproductor, sincronizadas tipo Spotify: se toman del archivo (ID3 USLT / M4A), de un `.lrc` junto a la canción o, si hay internet y está activado en Ajustes, de [lrclib.net](https://lrclib.net) (solo se envían título y artista; se guardan en el dispositivo). Sin letra: "Esta canción no contiene letra".
+- **Retoma** la última canción, cola y posición al reabrir; la biblioteca se guarda en caché y abre completa al instante.
 - Búsqueda por título, artista o álbum; modo oscuro (se recuerda).
 - Pantalla **Colaborá con el proyecto** (menú lateral) con alias y link de Mercado Pago.
 - Formatos: mp3, m4a, aac, flac, wav, ogg, opus.

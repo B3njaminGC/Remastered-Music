@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
+import 'package:path_provider/path_provider.dart';
 
 import 'song_sort.dart';
 import 'track_source.dart';
@@ -72,6 +74,10 @@ class TrackIndex extends ChangeNotifier {
 
   static const int _batchSize = 40;
 
+  /// Versión del formato del archivo de caché (súbela si cambia cómo se leen
+  /// las etiquetas, para descartar lo guardado).
+  static const int _cacheVersion = 2;
+
   final Map<String, TrackInfo> _cache = {};
   List<TrackInfo> _tracks = const [];
   List<TrackGroup>? _artists;
@@ -80,6 +86,7 @@ class TrackIndex extends ChangeNotifier {
   bool _loading = false;
   int _generation = 0;
   ValueListenable<List<String>>? _source;
+  File? _cacheFile;
 
   /// Canciones existentes, en el orden guardado en la biblioteca.
   List<TrackInfo> get tracks => _tracks;
@@ -92,6 +99,60 @@ class TrackIndex extends ChangeNotifier {
   List<TrackGroup> get artists => _artists ??= _group((t) => t.artistLabel);
   List<TrackGroup> get albums => _albums ??= _group((t) => t.albumLabel);
   List<TrackGroup> get sources => _sources ??= _group((t) => t.source);
+
+  /// Carga las etiquetas guardadas en disco. Con eso, al abrir la app toda la
+  /// biblioteca aparece completa al instante y solo se leen las canciones
+  /// nuevas o modificadas. Llamar antes de [bind].
+  Future<void> loadCache() async {
+    try {
+      final dir = await getApplicationSupportDirectory();
+      final file = File('${dir.path}${Platform.pathSeparator}track_tags.json');
+      _cacheFile = file;
+      if (!await file.exists()) return;
+      final data = jsonDecode(await file.readAsString());
+      if (data is! Map || data['v'] != _cacheVersion) return;
+      final tracks = data['t'];
+      if (tracks is! Map) return;
+      tracks.forEach((path, value) {
+        if (path is String && value is List && value.length >= 4) {
+          _cache[path] = TrackInfo(
+            file: File(path),
+            title: (value[0] as String?) ?? titleFromPath(path),
+            artist: value[1] as String?,
+            album: value[2] as String?,
+            modified: (value[3] as num?)?.toInt() ?? 0,
+          );
+        }
+      });
+    } catch (error) {
+      debugPrint('No se pudo leer la caché de etiquetas: $error');
+      _cache.clear();
+    }
+  }
+
+  Future<void> _saveCache() async {
+    final file = _cacheFile;
+    if (file == null) return;
+    try {
+      final data = <String, Object?>{
+        'v': _cacheVersion,
+        't': {
+          for (final entry in _cache.entries)
+            entry.key: [
+              entry.value.title,
+              entry.value.artist,
+              entry.value.album,
+              entry.value.modified,
+            ],
+        },
+      };
+      final temp = File('${file.path}.tmp');
+      await temp.writeAsString(jsonEncode(data), flush: true);
+      await temp.rename(file.path);
+    } catch (error) {
+      debugPrint('No se pudo guardar la caché de etiquetas: $error');
+    }
+  }
 
   /// Se mantiene sincronizado con la lista de rutas de la biblioteca.
   void bind(ValueListenable<List<String>> paths) {
@@ -134,22 +195,31 @@ class TrackIndex extends ChangeNotifier {
     final generation = ++_generation;
     _loading = true;
 
-    final valid = [
-      for (final path in paths)
-        if (File(path).existsSync()) path,
-    ];
+    // Una sola pasada: qué archivos existen y cuáles hay que (re)leer. Lo que ya
+    // está en la caché con la misma fecha de modificación no se vuelve a leer.
+    final valid = <String>[];
+    final stale = <String>[];
+    for (final path in paths) {
+      final stat = FileStat.statSync(path);
+      if (stat.type == FileSystemEntityType.notFound) continue;
+      valid.add(path);
+      final cached = _cache[path];
+      if (cached == null ||
+          cached.modified != stat.modified.millisecondsSinceEpoch) {
+        stale.add(path);
+      }
+    }
     final validSet = valid.toSet();
+    final before = _cache.length;
     _cache.removeWhere((path, _) => !validSet.contains(path));
+    var changed = _cache.length != before;
     _publish(valid);
 
-    final missing = [
-      for (final path in valid)
-        if (!_cache.containsKey(path)) path,
-    ];
-    for (var start = 0; start < missing.length; start += _batchSize) {
-      final batch = missing.sublist(
+    var batches = 0;
+    for (var start = 0; start < stale.length; start += _batchSize) {
+      final batch = stale.sublist(
         start,
-        math.min(start + _batchSize, missing.length),
+        math.min(start + _batchSize, stale.length),
       );
       List<Map<String, Object?>> tags;
       try {
@@ -169,11 +239,15 @@ class TrackIndex extends ChangeNotifier {
           modified: (tag['modified'] as int?) ?? 0,
         );
       }
+      changed = true;
       _publish(valid);
+      // Se guarda de a poco: si la app se cierra a medias, no se pierde todo.
+      if (++batches % 5 == 0) unawaited(_saveCache());
     }
     if (generation != _generation) return;
     _loading = false;
     notifyListeners();
+    if (changed) unawaited(_saveCache());
   }
 
   void _publish(List<String> paths) {

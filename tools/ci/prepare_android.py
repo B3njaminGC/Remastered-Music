@@ -19,6 +19,7 @@ ANDROID = "android"
 MANIFEST = os.path.join(ANDROID, "app", "src", "main", "AndroidManifest.xml")
 
 PERMISSIONS = [
+    ("android.permission.INTERNET", ""),  # solo para buscar letras (opcional)
     ("android.permission.READ_MEDIA_AUDIO", ""),
     ("android.permission.READ_EXTERNAL_STORAGE", ' android:maxSdkVersion="32"'),
     ("android.permission.WAKE_LOCK", ""),

@@ -43,7 +43,7 @@ class MiniPlayer extends StatelessWidget {
                         onTap: () {
                           Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => const NowPlayingScreen(),
+                              builder: (_) => const NowPlayingScreen(showBack: true),
                             ),
                           );
                         },

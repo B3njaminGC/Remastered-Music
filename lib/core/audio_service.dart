@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../library/track_index.dart';
+import 'app_settings.dart';
 import 'artwork_cache.dart';
 
 /// Reproductor de música local (solo archivos del dispositivo).
@@ -25,6 +26,13 @@ class AudioService {
         _consecutiveErrors = 0;
       }
     }, onError: (Object error, StackTrace _) => _onPlayerError(error));
+    _player.playingStream.listen((playing) {
+      if (!playing) _persistPosition();
+    });
+    // Mientras suena, la posición se guarda cada tanto para retomarla al reabrir.
+    Timer.periodic(const Duration(seconds: 5), (_) {
+      if (_player.playing) _persistPosition();
+    });
     unawaited(_configureAudioSession());
   }
 
@@ -119,6 +127,65 @@ class AudioService {
     if (index == null || index < 0 || index >= _queue.length) return;
     _currentIndex = index;
     _publishCurrent();
+    final settings = AppSettings.instance;
+    if (index != settings.lastIndex) {
+      unawaited(settings.saveSession(index: index, positionMs: 0));
+    }
+  }
+
+  // ------------------------------------------------------------ sesión
+
+  void _persistPosition() {
+    if (_queue.isEmpty) return;
+    unawaited(
+      AppSettings.instance.saveSession(
+        positionMs: _player.position.inMilliseconds,
+      ),
+    );
+  }
+
+  void _persistQueue({bool resetPosition = false}) {
+    unawaited(
+      AppSettings.instance.saveSession(
+        queue: [for (final file in _queue) file.path],
+        index: _currentIndex,
+        positionMs: resetPosition ? 0 : null,
+      ),
+    );
+  }
+
+  /// Retoma la última cola, canción y posición, en pausa (no empieza a sonar).
+  Future<void> restoreLastSession() async {
+    if (_queue.isNotEmpty) return;
+    try {
+      final settings = AppSettings.instance;
+      final paths = settings.lastQueue;
+      if (paths.isEmpty) return;
+      final files = [
+        for (final path in paths)
+          if (File(path).existsSync()) File(path),
+      ];
+      if (files.isEmpty) return;
+      final savedIndex = settings.lastIndex;
+      final savedPath = savedIndex >= 0 && savedIndex < paths.length
+          ? paths[savedIndex]
+          : null;
+      var index = savedPath == null
+          ? 0
+          : files.indexWhere((file) => file.path == savedPath);
+      final sameTrack = index >= 0;
+      if (!sameTrack) index = 0;
+      await setPlaylistAndPlay(
+        files,
+        index,
+        position: sameTrack
+            ? Duration(milliseconds: settings.lastPositionMs)
+            : Duration.zero,
+        autoplay: false,
+      );
+    } catch (error) {
+      debugPrint('No se pudo retomar la última sesión: $error');
+    }
   }
 
   void _publishCurrent() {
@@ -143,7 +210,14 @@ class AudioService {
   // ----------------------------------------------------------------- cola
 
   /// Reemplaza la cola por [files] y empieza a reproducir `files[initialIndex]`.
-  Future<void> setPlaylistAndPlay(List<File> files, int initialIndex) async {
+  ///
+  /// Con [autoplay] en `false` solo la deja cargada (pausada) en [position].
+  Future<void> setPlaylistAndPlay(
+    List<File> files,
+    int initialIndex, {
+    Duration? position,
+    bool autoplay = true,
+  }) async {
     RangeError.checkValidIndex(initialIndex, files, 'initialIndex');
     final queueId = ++_queueId;
     _consecutiveErrors = 0;
@@ -168,13 +242,18 @@ class AudioService {
         children: [for (final file in files) _sourceFor(file)],
       );
       _source = source;
-      await _player.setAudioSource(source, initialIndex: initialIndex);
+      await _player.setAudioSource(
+        source,
+        initialIndex: initialIndex,
+        initialPosition: position,
+      );
       if (queueId != _queueId) return;
 
       _publishCurrent();
+      _persistQueue(resetPosition: autoplay);
       // No usar `await _player.play()`: ese Future solo termina al pausar o
       // acabar la reproducción.
-      unawaited(_startPlayback());
+      if (autoplay) unawaited(_startPlayback());
       unawaited(
         ArtworkCache.warm([
           for (final file in files) file.path,
@@ -216,6 +295,7 @@ class AudioService {
         : math.min(_currentIndex + 1, _queue.length);
     _queue.insert(index, file);
     queueNotifier.value = List<File>.unmodifiable(_queue);
+    _persistQueue();
     try {
       await source.insert(index, _sourceFor(file));
     } catch (error) {
@@ -239,6 +319,7 @@ class AudioService {
     // `Dismissible` no se quede con un elemento fantasma.
     _queue.removeAt(index);
     queueNotifier.value = List<File>.unmodifiable(_queue);
+    _persistQueue();
     try {
       await source.removeAt(index);
     } catch (error) {
@@ -256,6 +337,7 @@ class AudioService {
     artistNotifier.value = null;
     albumNotifier.value = null;
     artworkBytesNotifier.value = null;
+    unawaited(AppSettings.instance.saveSession(queue: <String>[], index: 0, positionMs: 0));
     await _player.stop();
   }
 
@@ -272,6 +354,7 @@ class AudioService {
     final file = _queue.removeAt(oldIndex);
     _queue.insert(newIndex, file);
     queueNotifier.value = List<File>.unmodifiable(_queue);
+    _persistQueue();
     await source.move(oldIndex, newIndex);
   }
 

@@ -36,9 +36,27 @@ class AppSettings {
 
   Future<void> setDarkMode(bool value) => _box.put('dark_mode', value);
 
+  /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
+  bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
+
+  Future<void> setLyricsOnline(bool value) => _box.put('lyrics_online', value);
+
   SongSort get songSort => SongSort.fromName(_box.get('song_sort'));
 
   Future<void> setSongSort(SongSort value) => _box.put('song_sort', value.name);
+
+  // ---- última sesión de reproducción (para retomarla al reabrir la app)
+
+  List<String> get lastQueue => _stringList('last_queue');
+  int get lastIndex => (_box.get('last_index') as num?)?.toInt() ?? 0;
+  int get lastPositionMs => (_box.get('last_position_ms') as num?)?.toInt() ?? 0;
+
+  Future<void> saveSession({List<String>? queue, int? index, int? positionMs}) =>
+      _box.putAll(<String, Object>{
+        'last_queue': ?queue,
+        'last_index': ?index,
+        'last_position_ms': ?positionMs,
+      });
 
   List<String> _stringList(String key) {
     final raw = _box.get(key);

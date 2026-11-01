@@ -23,6 +23,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<String> _includedFolders = _settings.includedFolders;
   late List<String> _excludedFolders = _settings.excludedFolders;
   late bool _pauseOnHeadphoneDisconnect = _settings.pauseOnHeadphoneDisconnect;
+  late bool _lyricsOnline = _settings.lyricsOnline;
   bool _scanning = false;
 
   void _snack(String text, {SnackBarAction? action}) {
@@ -40,6 +41,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _pauseOnHeadphoneDisconnect = value);
     } catch (error) {
       _snack('No se pudo guardar el ajuste de audio: $error');
+    }
+  }
+
+  Future<void> _setLyricsOnline(bool value) async {
+    try {
+      await _settings.setLyricsOnline(value);
+      if (!mounted) return;
+      setState(() => _lyricsOnline = value);
+    } catch (error) {
+      _snack('No se pudo guardar el ajuste: $error');
     }
   }
 
@@ -160,6 +171,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   value: _pauseOnHeadphoneDisconnect,
                   activeThumbColor: Colors.deepOrange,
                   onChanged: _setPauseOnHeadphoneDisconnect,
+                ),
+                SwitchListTile(
+                  secondary: const Icon(
+                    Icons.lyrics_outlined,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text('Buscar letras en internet'),
+                  subtitle: const Text(
+                    'Si la canción no trae letra, se busca en lrclib.net '
+                    '(solo se envía título y artista) y se guarda en el '
+                    'dispositivo. Desactivado: 100% offline.',
+                  ),
+                  value: _lyricsOnline,
+                  activeThumbColor: Colors.deepOrange,
+                  onChanged: _setLyricsOnline,
                 ),
               ],
             ),
