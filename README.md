@@ -80,3 +80,6 @@ screens/                       Sonando, Ajustes, Bienvenida
 
 ## Licencia
 MIT.
+
+---
+Última actualización: build con firma fija.
