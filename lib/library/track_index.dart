@@ -237,6 +237,33 @@ Map<String, Object?> _readTags(String path) {
 }
 
 String? _clean(String? value) {
-  final text = value?.trim();
-  return (text == null || text.isEmpty) ? null : text;
+  if (value == null) return null;
+  final text = _fixUtf16ByteOrder(value)
+      // BOM, caracteres de control y no-caracteres que algunos taggers dejan.
+      .replaceAll(RegExp('[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F\\uFEFF\\uFFFE\\uFFFF]'), '')
+      .trim();
+  return text.isEmpty ? null : text;
+}
+
+/// Algunas apps de descarga (p. ej. Snaptube) guardan las etiquetas ID3 en
+/// UTF-16 little-endian pero la declaran big-endian. El lector las decodifica
+/// al revés y "Release" se ve como "刀攀氀攀愀猀攀" (chino/japonés). Si el texto
+/// delata ese cruce de bytes, se vuelve a ordenar.
+///
+/// Señales: empieza con U+FFFE (el BOM little-endian leído al revés) o es casi
+/// todo CJK pero, intercambiando los bytes, queda casi todo latino.
+String _fixUtf16ByteOrder(String text) {
+  final units = text.codeUnits;
+  if (units.isEmpty) return text;
+  int swap(int unit) => ((unit & 0xFF) << 8) | (unit >> 8);
+  final swapped = [for (final unit in units) swap(unit)];
+
+  if (units.first == 0xFFFE) return String.fromCharCodes(swapped);
+
+  final cjk = units.where((unit) => unit >= 0x2E80).length;
+  final latinAfterSwap = swapped.where((unit) => unit < 0x250).length;
+  if (cjk / units.length >= 0.5 && latinAfterSwap / swapped.length >= 0.9) {
+    return String.fromCharCodes(swapped);
+  }
+  return text;
 }
