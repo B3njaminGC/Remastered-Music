@@ -36,6 +36,11 @@ Para publicar una versión con nombre, crea un tag `v1.1.0` (Releases → *Draft
 > los permisos y el servicio de audio. Si algún día subes tu propia `android/`, se respeta y solo se completa lo que falte.
 > Sin tu `android/` original no existe el ecualizador del sistema (Ajustes avisa que no hay uno compatible).
 
+### Nombre, ícono y paquete
+Cuando el workflow genera `android/`, aplica el ícono propio (`tools/ci/icon/`, regenerable con `tools/ci/make_icons.py`),
+el nombre "Reproductor FOSS" y el paquete `com.b3njamingc.play_music_app` (distinto del de las pruebas anteriores,
+`com.example.play_music_app`, así que conviven sin conflicto de firma). Cada build sube el `versionCode` con el número de ejecución.
+
 ### Firma estable (recomendado)
 Sin configurar nada, cada compilación en GitHub se firma con una clave nueva, y Android **no deja actualizar encima**
 de una versión firmada con otra (hay que desinstalar antes). Para evitarlo:
@@ -46,7 +51,8 @@ base64 -w0 debug.keystore      # en macOS: base64 -i debug.keystore
 ```
 Pega el resultado como *secret* del repo con el nombre `DEBUG_KEYSTORE_BASE64`
 (Settings → Secrets and variables → Actions). Guarda el archivo `debug.keystore` en un lugar seguro y **no lo subas al repo**.
-Esto asume que tu `android/app/build.gradle` firma `release` con la configuración `debug` (lo que hace la plantilla por defecto).
+Esto asume que `android/app/build.gradle` firma `release` con la configuración `debug` (lo que hace la plantilla por defecto, y también el `android/` que genera el workflow).
+Si no puedes usar una PC, el keystore se puede generar en cualquier lado y pegarse como secret en base64 desde el navegador del celular.
 
 ### Configurar las donaciones
 Editá `lib/core/donation_config.dart` y completá `mercadoPagoAlias` y/o `mercadoPagoLink` (y opcionalmente `holderName`).

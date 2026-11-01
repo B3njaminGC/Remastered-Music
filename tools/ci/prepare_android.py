@@ -44,18 +44,34 @@ RECEIVER = """        <receiver android:name="com.ryanheise.audioservice.MediaBu
 """
 
 
+APP_LABEL = "Reproductor FOSS"
+ICON_RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon", "res")
+
+
 def generate_android():
+    """Devuelve True si generó android/ (y por tanto hay que aplicar la marca propia)."""
     if os.path.isdir(ANDROID):
         print("android/ ya existe: se conserva.")
-        return
+        return False
     print("android/ no existe: generándola con flutter create…")
     with tempfile.TemporaryDirectory() as tmp:
         subprocess.run(
-            ["flutter", "create", "--platforms=android", "--org", "com.example",
+            ["flutter", "create", "--platforms=android", "--org", "com.b3njamingc",
              "--project-name", "play_music_app", tmp],
             check=True,
         )
         shutil.copytree(os.path.join(tmp, ANDROID), ANDROID)
+    return True
+
+
+def apply_branding():
+    """Ícono propio (en vez del de Flutter) y nombre de la app."""
+    res = os.path.join(ANDROID, "app", "src", "main", "res")
+    shutil.copytree(ICON_RES, res, dirs_exist_ok=True)
+    text = open(MANIFEST, encoding="utf-8").read()
+    text = re.sub(r'android:label="[^"]*"', f'android:label="{APP_LABEL}"', text, count=1)
+    open(MANIFEST, "w", encoding="utf-8").write(text)
+    print("Ícono y nombre aplicados:", APP_LABEL)
 
 
 def patch_manifest():
@@ -108,9 +124,11 @@ def patch_main_activity():
 
 
 if __name__ == "__main__":
-    generate_android()
+    generated = generate_android()
     if not os.path.exists(MANIFEST):
         print("::error::No se encontró", MANIFEST)
         sys.exit(1)
+    if generated:
+        apply_branding()
     patch_manifest()
     patch_main_activity()
