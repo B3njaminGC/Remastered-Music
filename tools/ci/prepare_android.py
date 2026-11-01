@@ -102,6 +102,69 @@ def patch_manifest():
     print("Manifest:", "; ".join(changed) if changed else "sin cambios.")
 
 
+def patch_signing():
+    """Firma release con el keystore fijo de CI (variable CI_KEYSTORE_PATH).
+
+    Sin esa variable (o si el archivo no existe) se conserva la firma debug por
+    defecto. Esto evita depender de dónde busque Gradle ~/.android/debug.keystore.
+    """
+    kts = os.path.join(ANDROID, "app", "build.gradle.kts")
+    groovy = os.path.join(ANDROID, "app", "build.gradle")
+    if os.path.exists(kts):
+        path, is_kts = kts, True
+    elif os.path.exists(groovy):
+        path, is_kts = groovy, False
+    else:
+        print("::warning::No encontré build.gradle(.kts); firma sin tocar.")
+        return
+    text = open(path, encoding="utf-8").read()
+    if "CI_KEYSTORE_PATH" in text:
+        print("Firma: ya configurada.")
+        return
+    if is_kts:
+        block = (
+            "    signingConfigs {\n"
+            '        create("ci") {\n'
+            '            val ciKeystore = System.getenv("CI_KEYSTORE_PATH")\n'
+            "            if (ciKeystore != null) {\n"
+            "                storeFile = file(ciKeystore)\n"
+            '                storePassword = "android"\n'
+            '                keyAlias = "androiddebugkey"\n'
+            '                keyPassword = "android"\n'
+            "            }\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        old = 'signingConfig = signingConfigs.getByName("debug")'
+        new = (
+            'signingConfig = if (System.getenv("CI_KEYSTORE_PATH") != null) '
+            'signingConfigs.getByName("ci") else signingConfigs.getByName("debug")'
+        )
+    else:
+        block = (
+            "    signingConfigs {\n"
+            "        ci {\n"
+            "            def ciKeystore = System.getenv('CI_KEYSTORE_PATH')\n"
+            "            if (ciKeystore != null) {\n"
+            "                storeFile file(ciKeystore)\n"
+            "                storePassword 'android'\n"
+            "                keyAlias 'androiddebugkey'\n"
+            "                keyPassword 'android'\n"
+            "            }\n"
+            "        }\n"
+            "    }\n\n"
+        )
+        old = "signingConfig signingConfigs.debug"
+        new = "signingConfig (System.getenv('CI_KEYSTORE_PATH') != null ? signingConfigs.ci : signingConfigs.debug)"
+    if old not in text or "buildTypes {" not in text:
+        print("::warning::No reconocí el bloque de firma de release; firma sin tocar.")
+        return
+    text = text.replace("buildTypes {", block + "    buildTypes {", 1)
+    text = text.replace(old, new, 1)
+    open(path, "w", encoding="utf-8").write(text)
+    print("Firma: release usará CI_KEYSTORE_PATH si existe.")
+
+
 def patch_main_activity():
     for root, _, files in os.walk(os.path.join(ANDROID, "app", "src", "main")):
         for name in files:
@@ -132,3 +195,4 @@ if __name__ == "__main__":
         apply_branding()
     patch_manifest()
     patch_main_activity()
+    patch_signing()

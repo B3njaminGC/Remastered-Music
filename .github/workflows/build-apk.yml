@@ -42,12 +42,14 @@ jobs:
         env:
           KEYSTORE_B64: ${{ secrets.DEBUG_KEYSTORE_BASE64 }}
         run: |
-          if [ -n "$KEYSTORE_B64" ]; then
+          if [ -n "$KEYSTORE_B64" ] && printf '%s' "$KEYSTORE_B64" | tr -d ' \n\r' | base64 -d > "$RUNNER_TEMP/release.keystore" 2>/dev/null; then
             mkdir -p ~/.android
-            echo "$KEYSTORE_B64" | base64 -d > ~/.android/debug.keystore
-            echo "Clave de firma restaurada."
+            cp "$RUNNER_TEMP/release.keystore" ~/.android/debug.keystore
+            echo "CI_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
+            echo "Clave de firma restaurada:"
+            keytool -list -v -keystore "$RUNNER_TEMP/release.keystore" -storepass android 2>/dev/null | grep -E "Owner|SHA256" || echo "::warning::El keystore no se pudo leer (¿secret mal pegado?). Se usará la firma por defecto."
           else
-            echo "Sin clave fija: cada APK se firma con una clave distinta (para actualizar hay que desinstalar la versión anterior)."
+            echo "::warning::Sin clave fija válida: cada APK se firma con una clave distinta (para actualizar hay que desinstalar la versión anterior)."
           fi
 
       - run: flutter pub get
@@ -58,6 +60,12 @@ jobs:
 
       - name: Compilar APK
         run: flutter build apk --release --build-number=${{ github.run_number }}
+
+      - name: Mostrar firma del APK (informativo)
+        continue-on-error: true
+        run: |
+          APKSIGNER=$(ls "$ANDROID_HOME"/build-tools/*/apksigner | sort -V | tail -1)
+          "$APKSIGNER" verify --print-certs build/app/outputs/flutter-apk/app-release.apk | grep -E "Signer #1 certificate (DN|SHA-256)"
 
       - name: Preparar archivo
         id: apk
