@@ -8,6 +8,7 @@ import '../../library/genre_store.dart';
 import '../../library/song_sort.dart';
 import '../../library/track_index.dart';
 import 'genre_dialogs.dart';
+import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
 
 enum _GenreMenu { edit, delete }
@@ -181,14 +182,25 @@ class _GenreScreenState extends State<GenreScreen> {
                           ),
                         ),
                       )
-                    : ListView.builder(
-                        itemCount: tracks.length,
-                        itemExtent: 72,
-                        itemBuilder: (context, i) => TrackTile(
-                          track: tracks[i],
-                          onTap: () => audio.setPlaylistAndPlay(files, i),
-                        ),
-                      ),
+                    : TrackSelectionScope(
+                tracks: tracks,
+                builder: (context, selection) => ListView.builder(
+                  itemCount: tracks.length,
+                  itemExtent: 72,
+                  itemBuilder: (context, i) {
+                    final track = tracks[i];
+                    return TrackTile(
+                      track: track,
+                      selecting: selection.active,
+                      selected: selection.contains(track.path),
+                      onLongPress: () => selection.toggle(track.path),
+                      onTap: selection.active
+                          ? () => selection.toggle(track.path)
+                          : () => audio.setPlaylistAndPlay(files, i),
+                    );
+                  },
+                ),
+              )
               ),
             ],
           ),

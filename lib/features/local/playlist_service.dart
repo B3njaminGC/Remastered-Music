@@ -107,6 +107,20 @@ class PlaylistService {
     await box.put(name, paths);
   }
 
+  /// Añade varias canciones de una vez (sin repetir las que ya están).
+  Future<void> addTracks(String name, Iterable<String> newPaths) async {
+    final box = await _openBox();
+    final storedPaths = box.get(name);
+    final paths = storedPaths == null
+        ? <String>[]
+        : storedPaths.cast<String>().toList();
+    final seen = paths.toSet();
+    for (final path in newPaths) {
+      if (seen.add(path)) paths.add(path);
+    }
+    await box.put(name, paths);
+  }
+
   Future<void> removeTrack(String name, String path) async {
     final box = await _openBox();
     final storedPaths = box.get(name);

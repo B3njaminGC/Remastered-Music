@@ -6,6 +6,7 @@ import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
 import '../../library/genre_store.dart';
 import 'genre_screen.dart';
+import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
 
 enum GroupMode { artist, album, genre, source }
@@ -164,14 +165,25 @@ class TrackGroupScreen extends StatelessWidget {
             ),
           ),
           Expanded(
-            child: ListView.builder(
-              itemCount: group.tracks.length,
-              itemExtent: 72,
-              itemBuilder: (context, i) => TrackTile(
-                track: group.tracks[i],
-                onTap: () => audio.setPlaylistAndPlay(files, i),
-              ),
-            ),
+            child: TrackSelectionScope(
+                tracks: group.tracks,
+                builder: (context, selection) => ListView.builder(
+                  itemCount: group.tracks.length,
+                  itemExtent: 72,
+                  itemBuilder: (context, i) {
+                    final track = group.tracks[i];
+                    return TrackTile(
+                      track: track,
+                      selecting: selection.active,
+                      selected: selection.contains(track.path),
+                      onLongPress: () => selection.toggle(track.path),
+                      onTap: selection.active
+                          ? () => selection.toggle(track.path)
+                          : () => audio.setPlaylistAndPlay(files, i),
+                    );
+                  },
+                ),
+              )
           ),
         ],
       ),

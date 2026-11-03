@@ -12,15 +12,50 @@ import '../playlist_dialogs.dart';
 
 /// Fila de canción: carátula, título, artista y menú de acciones.
 class TrackTile extends StatelessWidget {
-  const TrackTile({super.key, required this.track, required this.onTap});
+  const TrackTile({
+    super.key,
+    required this.track,
+    required this.onTap,
+    this.onLongPress,
+    this.selecting = false,
+    this.selected = false,
+  });
 
   final TrackInfo track;
   final VoidCallback onTap;
 
+  /// Mantener apretado (normalmente empieza la selección múltiple).
+  final VoidCallback? onLongPress;
+
+  /// Hay una selección en curso: se oculta el menú ⋮ y el toque marca/desmarca.
+  final bool selecting;
+  final bool selected;
+
   @override
   Widget build(BuildContext context) {
     return ListTile(
-      leading: LocalTrackArtwork(file: track.file, size: 45, borderRadius: 8),
+      selected: selected,
+      selectedTileColor: Colors.deepOrange.withValues(alpha: 0.14),
+      leading: Stack(
+        alignment: Alignment.center,
+        children: [
+          LocalTrackArtwork(file: track.file, size: 45, borderRadius: 8),
+          if (selecting)
+            Positioned.fill(
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: selected ? Colors.deepOrange : Colors.black26,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(
+                  selected ? Icons.check : Icons.circle_outlined,
+                  color: Colors.white,
+                  size: 22,
+                ),
+              ),
+            ),
+        ],
+      ),
       title: Text(
         track.title,
         maxLines: 1,
@@ -35,8 +70,11 @@ class TrackTile extends StatelessWidget {
         overflow: TextOverflow.ellipsis,
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
-      trailing: TrackMenuButton(file: track.file, onPlay: onTap),
+      trailing: selecting
+          ? null
+          : TrackMenuButton(file: track.file, onPlay: onTap),
       onTap: onTap,
+      onLongPress: onLongPress,
     );
   }
 }

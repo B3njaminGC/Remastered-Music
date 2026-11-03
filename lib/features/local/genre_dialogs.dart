@@ -13,11 +13,18 @@ String _errorText(Object error) {
 
 /// "Género" de una canción: elegir uno existente, escribir un código (CB) o un
 /// nombre nuevo, o quitar la asignación manual.
-Future<void> showSongGenreDialog(BuildContext context, File song) async {
+Future<void> showSongGenreDialog(BuildContext context, File song) =>
+    showSongsGenreDialog(context, [song]);
+
+/// Igual que [showSongGenreDialog] pero para varias canciones a la vez.
+Future<void> showSongsGenreDialog(
+  BuildContext context,
+  List<File> songs,
+) async {
   final messenger = ScaffoldMessenger.of(context);
   final message = await showDialog<String>(
     context: context,
-    builder: (_) => _SongGenreDialog(song: song),
+    builder: (_) => _SongGenreDialog(songs: songs),
   );
   if (message != null) {
     messenger
@@ -27,9 +34,9 @@ Future<void> showSongGenreDialog(BuildContext context, File song) async {
 }
 
 class _SongGenreDialog extends StatefulWidget {
-  const _SongGenreDialog({required this.song});
+  const _SongGenreDialog({required this.songs});
 
-  final File song;
+  final List<File> songs;
 
   @override
   State<_SongGenreDialog> createState() => _SongGenreDialogState();
@@ -39,9 +46,13 @@ class _SongGenreDialogState extends State<_SongGenreDialog> {
   final GenreStore _store = GenreStore.instance;
   final TextEditingController _name = TextEditingController();
   final TextEditingController _code = TextEditingController();
-  late final TrackInfo _info =
-      TrackIndex.instance.infoFor(widget.song.path) ??
-      TrackInfo.fromFile(widget.song);
+  late final List<TrackInfo> _infos = [
+    for (final song in widget.songs)
+      TrackIndex.instance.infoFor(song.path) ?? TrackInfo.fromFile(song),
+  ];
+  late final List<String> _paths = [for (final song in widget.songs) song.path];
+  bool get _single => _infos.length == 1;
+  bool get _anyManual => _infos.any((info) => info.hasManualGenre);
   late final List<TrackGroup> _known = [
     for (final group in TrackIndex.instance.genres)
       if (group.name != unknownGenreLabel) group,
@@ -83,13 +94,17 @@ class _SongGenreDialogState extends State<_SongGenreDialog> {
   }
 
   Future<void> _save(String input, {String code = ''}) => _run(() async {
-    final name = await _store.assign([widget.song.path], input, code: code);
-    return 'Género de «${_info.title}»: $name.';
+    final name = await _store.assign(_paths, input, code: code);
+    return _single
+        ? 'Género de «${_infos.first.title}»: $name.'
+        : '${_infos.length} canciones → género $name.';
   });
 
   Future<void> _clear() => _run(() async {
-    await _store.clear([widget.song.path]);
-    return 'Se quitó el género manual: ahora es ${_info.genre}.';
+    await _store.clear(_paths);
+    return _single
+        ? 'Se quitó el género manual: ahora es ${_infos.first.genre}.'
+        : 'Se quitó el género manual de las canciones seleccionadas.';
   });
 
   @override
@@ -103,16 +118,19 @@ class _SongGenreDialogState extends State<_SongGenreDialog> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              _info.title,
+              _single ? _infos.first.title : '${_infos.length} canciones',
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            const SizedBox(height: 4),
-            Text(
-              'Actual: ${_info.genre}${_info.hasManualGenre ? ' (manual)' : ''}',
-              style: theme.textTheme.bodySmall,
-            ),
+            if (_single) ...[
+              const SizedBox(height: 4),
+              Text(
+                'Actual: ${_infos.first.genre}'
+                '${_infos.first.hasManualGenre ? ' (manual)' : ''}',
+                style: theme.textTheme.bodySmall,
+              ),
+            ],
             const SizedBox(height: 12),
             TextField(
               controller: _name,
@@ -169,7 +187,7 @@ class _SongGenreDialogState extends State<_SongGenreDialog> {
         ),
       ),
       actions: [
-        if (_info.hasManualGenre)
+        if (_anyManual)
           TextButton(
             onPressed: _busy ? null : _clear,
             child: const Text('Quitar manual'),

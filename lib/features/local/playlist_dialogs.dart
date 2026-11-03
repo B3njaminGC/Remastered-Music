@@ -109,24 +109,39 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
 }
 
 /// Hoja inferior "Añadir a lista" (con opción de crear una lista nueva).
-Future<void> showAddToPlaylistDialog(BuildContext context, File song) async {
+Future<void> showAddToPlaylistDialog(BuildContext context, File song) =>
+    showAddSongsToPlaylistDialog(context, [song]);
+
+/// Igual que [showAddToPlaylistDialog] pero para varias canciones a la vez.
+Future<void> showAddSongsToPlaylistDialog(
+  BuildContext context,
+  List<File> songs,
+) async {
   final messenger = ScaffoldMessenger.of(context);
   final listName = await showModalBottomSheet<String>(
     context: context,
     isScrollControlled: true,
-    builder: (_) => _AddToPlaylistSheet(song: song),
+    builder: (_) => _AddToPlaylistSheet(songs: songs),
   );
   if (listName != null) {
     messenger
       ..hideCurrentSnackBar()
-      ..showSnackBar(SnackBar(content: Text('Añadida a "$listName".')));
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            songs.length == 1
+                ? 'Añadida a "$listName".'
+                : 'Añadidas ${songs.length} canciones a "$listName".',
+          ),
+        ),
+      );
   }
 }
 
 class _AddToPlaylistSheet extends StatefulWidget {
-  const _AddToPlaylistSheet({required this.song});
+  const _AddToPlaylistSheet({required this.songs});
 
-  final File song;
+  final List<File> songs;
 
   @override
   State<_AddToPlaylistSheet> createState() => _AddToPlaylistSheetState();
@@ -165,14 +180,14 @@ class _AddToPlaylistSheetState extends State<_AddToPlaylistSheet> {
   }
 
   Future<void> _addTo(String name) => _run(() async {
-    await _service.addTrack(name, widget.song.path);
+    await _service.addTracks(name, [for (final song in widget.songs) song.path]);
     return name;
-  }, 'No se pudo añadir la canción');
+  }, 'No se pudo añadir');
 
   Future<void> _createAndAdd() => _run(() async {
     final name = _controller.text.trim();
     await _service.createPlaylist(name);
-    await _service.addTrack(name, widget.song.path);
+    await _service.addTracks(name, [for (final song in widget.songs) song.path]);
     return name;
   }, 'No se pudo guardar la lista');
 
@@ -195,7 +210,9 @@ class _AddToPlaylistSheetState extends State<_AddToPlaylistSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Añadir a lista',
+                  widget.songs.length == 1
+                      ? 'Añadir a lista'
+                      : 'Añadir ${widget.songs.length} canciones a lista',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
                 const SizedBox(height: 12),

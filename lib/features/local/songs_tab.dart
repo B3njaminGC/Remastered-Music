@@ -6,6 +6,7 @@ import '../../library/song_sort.dart';
 import '../../library/track_index.dart';
 import '../../screens/settings_screen.dart';
 import 'library_actions.dart';
+import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
 
 /// Pestaña "Canciones": toda la biblioteca con orden y "aleatorio".
@@ -74,14 +75,25 @@ class _SongsTabState extends State<SongsTab> {
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                itemCount: songs.length,
-                itemExtent: 72,
-                itemBuilder: (context, index) => TrackTile(
-                  track: songs[index],
-                  onTap: () => _audio.setPlaylistAndPlay(files, index),
+              child: TrackSelectionScope(
+                tracks: songs,
+                builder: (context, selection) => ListView.builder(
+                  itemCount: songs.length,
+                  itemExtent: 72,
+                  itemBuilder: (context, index) {
+                    final track = songs[index];
+                    return TrackTile(
+                      track: track,
+                      selecting: selection.active,
+                      selected: selection.contains(track.path),
+                      onLongPress: () => selection.toggle(track.path),
+                      onTap: selection.active
+                          ? () => selection.toggle(track.path)
+                          : () => _audio.setPlaylistAndPlay(files, index),
+                    );
+                  },
                 ),
-              ),
+              )
             ),
           ],
         );

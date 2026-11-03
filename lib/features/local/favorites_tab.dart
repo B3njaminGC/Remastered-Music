@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/audio_service.dart';
 import '../../library/favorites_repository.dart';
 import '../../library/track_index.dart';
+import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
 
 /// Pestaña "Favoritas": las canciones marcadas con ♥, la más reciente primero.
@@ -58,14 +59,25 @@ class FavoritesTab extends StatelessWidget {
               ),
             ),
             Expanded(
-              child: ListView.builder(
-                itemCount: songs.length,
-                itemExtent: 72,
-                itemBuilder: (context, i) => TrackTile(
-                  track: songs[i],
-                  onTap: () => audio.setPlaylistAndPlay(files, i),
+              child: TrackSelectionScope(
+                tracks: songs,
+                builder: (context, selection) => ListView.builder(
+                  itemCount: songs.length,
+                  itemExtent: 72,
+                  itemBuilder: (context, i) {
+                    final track = songs[i];
+                    return TrackTile(
+                      track: track,
+                      selecting: selection.active,
+                      selected: selection.contains(track.path),
+                      onLongPress: () => selection.toggle(track.path),
+                      onTap: selection.active
+                          ? () => selection.toggle(track.path)
+                          : () => audio.setPlaylistAndPlay(files, i),
+                    );
+                  },
                 ),
-              ),
+              )
             ),
           ],
         );

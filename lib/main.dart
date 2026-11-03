@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import 'package:just_audio_background/just_audio_background.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'core/app_settings.dart';
@@ -173,10 +174,26 @@ class _MainContainerState extends State<MainContainer> {
     super.initState();
     _showOnboarding = !widget.seenOnboarding;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted && !_showOnboarding) {
-        unawaited(checkForUpdateOnLaunch(context));
-      }
+      if (mounted && !_showOnboarding) unawaited(_afterFirstFrame());
     });
+  }
+
+  /// Permiso de notificaciones (Android 13+: sin él no aparece el control de
+  /// la canción en la barra de notificaciones) y, después, el aviso de versión.
+  Future<void> _afterFirstFrame() async {
+    await _askNotificationPermission();
+    if (!mounted) return;
+    await checkForUpdateOnLaunch(context);
+  }
+
+  Future<void> _askNotificationPermission() async {
+    try {
+      if (await Permission.notification.isDenied) {
+        await Permission.notification.request();
+      }
+    } catch (_) {
+      // Plataforma sin este permiso: no pasa nada.
+    }
   }
 
   Future<void> _finishOnboarding() async {
@@ -184,6 +201,7 @@ class _MainContainerState extends State<MainContainer> {
     await prefs.setBool('seen_onboarding', true);
     if (!mounted) return;
     setState(() => _showOnboarding = false);
+    unawaited(_askNotificationPermission());
   }
 
   void _openSettings() {
