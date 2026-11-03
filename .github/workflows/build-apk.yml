@@ -79,14 +79,14 @@ jobs:
           else
             TAG="build-${GITHUB_RUN_NUMBER}"
           fi
-          cp build/app/outputs/flutter-apk/app-release.apk "reproductor-offline-${TAG}.apk"
+          cp build/app/outputs/flutter-apk/app-release.apk "Resonar-${TAG}.apk"
           echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "file=reproductor-offline-${TAG}.apk" >> "$GITHUB_OUTPUT"
+          echo "file=Resonar-${TAG}.apk" >> "$GITHUB_OUTPUT"
 
       - name: Guardar como artefacto
         uses: actions/upload-artifact@v4
         with:
-          name: reproductor-offline-apk
+          name: resonar-apk
           path: ${{ steps.apk.outputs.file }}
 
       - name: Publicar Release
