@@ -39,6 +39,12 @@ Para publicar una versión con nombre, crea un tag `v1.1.0` (Releases → *Draft
 > los permisos y el servicio de audio. Si algún día subes tu propia `android/`, se respeta y solo se completa lo que falte.
 > Sin tu `android/` original no existe el ecualizador del sistema (Ajustes avisa que no hay uno compatible).
 
+### Avisos de actualización
+Al abrir la app (máx. una vez cada 6 h) consulta `releases/latest` de este repo; si el `build-N` publicado es mayor que el
+`versionCode` instalado, muestra un aviso con **Descargar** (abre el APK en el navegador), **Más tarde** u **Omitir esta**.
+Se puede apagar o forzar la búsqueda en *Ajustes → Actualizaciones*. La lógica está en `lib/update/` y es reutilizable en
+otra app: copiá `update_checker.dart` y `update_prompt.dart`, cambiá `owner`/`repo` y agregá `package_info_plus`.
+
 ### Nombre, ícono y paquete
 Cuando el workflow genera `android/`, aplica el ícono propio (`tools/ci/icon/`, regenerable con `tools/ci/make_icons.py`),
 el nombre "Resonar" y el paquete `com.b3njamingc.play_music_app` (distinto del de las pruebas anteriores,

@@ -96,6 +96,6 @@ jobs:
           else
             gh release create "$TAG" "$FILE" \
               --title "Resonar $TAG" \
-              --notes "APK generado automáticamente desde el commit ${GITHUB_SHA::7}." \
+              --notes "$(git log -1 --pretty=%s)"$'\n\n'"APK generado automáticamente desde el commit ${GITHUB_SHA::7}." \
               --target "$GITHUB_SHA"
           fi

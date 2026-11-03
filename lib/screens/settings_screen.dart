@@ -7,6 +7,8 @@ import '../core/app_settings.dart';
 import '../core/audio_service.dart';
 import '../features/local/library_actions.dart';
 import '../library/library_repository.dart';
+import '../update/update_checker.dart';
+import '../update/update_prompt.dart';
 import 'support_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -24,6 +26,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late List<String> _excludedFolders = _settings.excludedFolders;
   late bool _pauseOnHeadphoneDisconnect = _settings.pauseOnHeadphoneDisconnect;
   late bool _lyricsOnline = _settings.lyricsOnline;
+  late bool _checkUpdates = _settings.checkUpdates;
+  bool _checkingUpdate = false;
   bool _scanning = false;
 
   void _snack(String text, {SnackBarAction? action}) {
@@ -41,6 +45,35 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() => _pauseOnHeadphoneDisconnect = value);
     } catch (error) {
       _snack('No se pudo guardar el ajuste de audio: $error');
+    }
+  }
+
+  Future<void> _setCheckUpdates(bool value) async {
+    try {
+      await _settings.setCheckUpdates(value);
+      if (!mounted) return;
+      setState(() => _checkUpdates = value);
+    } catch (error) {
+      _snack('No se pudo guardar el ajuste: $error');
+    }
+  }
+
+  Future<void> _checkUpdateNow() async {
+    if (_checkingUpdate) return;
+    setState(() => _checkingUpdate = true);
+    try {
+      final update = await UpdateChecker.instance.check();
+      if (!mounted) return;
+      if (update == null) {
+        final current = await UpdateChecker.instance.installed();
+        _snack('Ya tenés la última versión (build ${current.build}).');
+      } else {
+        await showUpdateDialog(context, update);
+      }
+    } catch (_) {
+      _snack('No se pudo comprobar. ¿Hay conexión a internet?');
+    } finally {
+      if (mounted) setState(() => _checkingUpdate = false);
     }
   }
 
@@ -187,6 +220,36 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeThumbColor: Colors.deepOrange,
                   onChanged: _setLyricsOnline,
                 ),
+              ],
+            ),
+          ),
+          const Divider(height: 40),
+          _sectionTitle('ACTUALIZACIONES'),
+          const SizedBox(height: 8),
+          Card(
+            child: Column(
+              children: [
+                SwitchListTile(
+                  secondary: const Icon(
+                    Icons.system_update,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text('Avisar si hay una versión nueva'),
+                  subtitle: const Text(
+                    'Al abrir la app consulta GitHub Releases (no envía datos '
+                    'tuyos). Desactivado: 100% offline.',
+                  ),
+                  value: _checkUpdates,
+                  activeThumbColor: Colors.deepOrange,
+                  onChanged: _setCheckUpdates,
+                ),
+                ListTile(
+                  leading: const Icon(Icons.refresh, color: Colors.deepOrange),
+                  title: const Text('Buscar actualizaciones ahora'),
+                  enabled: !_checkingUpdate,
+                  onTap: _checkUpdateNow,
+                ),
+                if (_checkingUpdate) const LinearProgressIndicator(),
               ],
             ),
           ),

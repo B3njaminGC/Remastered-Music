@@ -41,6 +41,21 @@ class AppSettings {
 
   Future<void> setLyricsOnline(bool value) => _box.put('lyrics_online', value);
 
+  /// Avisar cuando hay una versión nueva en GitHub Releases.
+  bool get checkUpdates => _box.get('check_updates', defaultValue: true) == true;
+
+  Future<void> setCheckUpdates(bool value) => _box.put('check_updates', value);
+
+  int get lastUpdateCheckMs =>
+      (_box.get('last_update_check') as num?)?.toInt() ?? 0;
+
+  Future<void> setLastUpdateCheck(int ms) => _box.put('last_update_check', ms);
+
+  /// Build que la persona eligió omitir ("Omitir esta").
+  int get skippedBuild => (_box.get('skipped_build') as num?)?.toInt() ?? 0;
+
+  Future<void> setSkippedBuild(int build) => _box.put('skipped_build', build);
+
   SongSort get songSort => SongSort.fromName(_box.get('song_sort'));
 
   Future<void> setSongSort(SongSort value) => _box.put('song_sort', value.name);

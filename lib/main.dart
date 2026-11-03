@@ -23,6 +23,7 @@ import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/support_screen.dart';
 import 'theme/app_theme.dart';
+import 'update/update_prompt.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -171,6 +172,11 @@ class _MainContainerState extends State<MainContainer> {
   void initState() {
     super.initState();
     _showOnboarding = !widget.seenOnboarding;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_showOnboarding) {
+        unawaited(checkForUpdateOnLaunch(context));
+      }
+    });
   }
 
   Future<void> _finishOnboarding() async {
