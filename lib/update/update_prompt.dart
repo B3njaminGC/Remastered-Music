@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import 'update_installer.dart';
+
 import '../core/app_settings.dart';
 import 'update_checker.dart';
 
@@ -70,32 +72,104 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo update) {
           child: const Text('Más tarde'),
         ),
         FilledButton(
-          onPressed: () async {
-            final messenger = ScaffoldMessenger.maybeOf(context);
-            var opened = false;
-            try {
-              opened = await launchUrl(
-                Uri.parse(update.downloadUrl),
-                mode: LaunchMode.externalApplication,
-              );
-            } catch (_) {}
-            if (dialogContext.mounted) Navigator.of(dialogContext).pop();
-            if (!opened) {
-              messenger
-                ?..hideCurrentSnackBar()
-                ..showSnackBar(
-                  SnackBar(
-                    content: Text(
-                      'No pude abrir el navegador. Descargala desde '
-                      '${update.pageUrl}',
-                    ),
-                  ),
-                );
-            }
+          onPressed: () {
+            Navigator.of(dialogContext).pop();
+            showDialog<void>(
+              context: context,
+              barrierDismissible: false,
+              builder: (_) => _DownloadDialog(update: update),
+            );
           },
           child: const Text('Descargar'),
         ),
       ],
     ),
   );
+}
+
+/// Descarga el APK dentro de la app (con progreso) y abre el instalador.
+class _DownloadDialog extends StatefulWidget {
+  const _DownloadDialog({required this.update});
+
+  final UpdateInfo update;
+
+  @override
+  State<_DownloadDialog> createState() => _DownloadDialogState();
+}
+
+class _DownloadDialogState extends State<_DownloadDialog> {
+  double? _progress;
+  String? _error;
+  bool _cancelled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _start();
+  }
+
+  Future<void> _start() async {
+    try {
+      final path = await UpdateInstaller.download(
+        widget.update.downloadUrl,
+        onProgress: (p) {
+          if (mounted) setState(() => _progress = p);
+        },
+        isCancelled: () => _cancelled,
+      );
+      if (!mounted || _cancelled) return;
+      Navigator.of(context).pop();
+      await UpdateInstaller.install(path);
+    } catch (e) {
+      if (mounted && !_cancelled) {
+        setState(() => _error = 'No se pudo descargar. Revisá tu conexión.');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final error = _error;
+    return AlertDialog(
+      title: Text(error == null ? 'Descargando…' : 'Algo falló'),
+      content: error == null
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                LinearProgressIndicator(
+                  value: _progress,
+                  color: Colors.deepOrange,
+                ),
+                const SizedBox(height: 8),
+                Text(
+                  _progress == null
+                      ? 'Conectando…'
+                      : '${(_progress! * 100).floor()} %',
+                ),
+              ],
+            )
+          : Text(error),
+      actions: [
+        if (error != null)
+          TextButton(
+            onPressed: () async {
+              Navigator.of(context).pop();
+              await launchUrl(
+                Uri.parse(widget.update.pageUrl),
+                mode: LaunchMode.externalApplication,
+              );
+            },
+            child: const Text('Abrir en el navegador'),
+          ),
+        TextButton(
+          onPressed: () {
+            _cancelled = true;
+            Navigator.of(context).pop();
+          },
+          child: Text(error == null ? 'Cancelar' : 'Cerrar'),
+        ),
+      ],
+    );
+  }
 }

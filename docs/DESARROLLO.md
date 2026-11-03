@@ -36,7 +36,7 @@ Guardá `debug.keystore` en un lugar seguro y **no lo subas al repo**.
 
 El script de CI añade (solo en la copia de compilación) los que falten: `INTERNET` (letras y avisos de versión),
 `READ_MEDIA_AUDIO`, `READ_EXTERNAL_STORAGE` (hasta Android 12), `WAKE_LOCK`, `FOREGROUND_SERVICE`,
-`FOREGROUND_SERVICE_MEDIA_PLAYBACK` y `POST_NOTIFICATIONS`.
+`FOREGROUND_SERVICE_MEDIA_PLAYBACK`, `POST_NOTIFICATIONS` y `REQUEST_INSTALL_PACKAGES` (instalar las actualizaciones descargadas desde la app).
 
 ## Avisos de actualización
 
