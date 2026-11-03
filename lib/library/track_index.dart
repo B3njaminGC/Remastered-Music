@@ -113,6 +113,12 @@ class TrackIndex extends ChangeNotifier {
   List<TrackGroup>? _sources;
   List<TrackGroup>? _genres;
   bool _loading = false;
+  int _readTotal = 0;
+  int _readDone = 0;
+
+  /// Archivos cuyas etiquetas no se pudieron leer: no se guardan en la caché
+  /// del disco, así se reintentan la próxima vez que se abre la app.
+  final Set<String> _unreadable = <String>{};
   int _generation = 0;
   ValueListenable<List<String>>? _source;
   File? _cacheFile;
@@ -122,6 +128,23 @@ class TrackIndex extends ChangeNotifier {
 
   /// `true` mientras se leen etiquetas.
   bool get loading => _loading;
+
+  /// Progreso de la lectura de etiquetas (canciones leídas / por leer).
+  int get readDone => _readDone;
+  int get readTotal => _readTotal;
+
+  /// Descarta lo guardado y vuelve a leer las etiquetas de todas las canciones.
+  Future<void> rebuild() async {
+    _cache.clear();
+    _unreadable.clear();
+    try {
+      final file = _cacheFile;
+      if (file != null && await file.exists()) await file.delete();
+    } catch (error) {
+      debugPrint('No se pudo borrar la caché de etiquetas: $error');
+    }
+    await _refresh(_source?.value ?? const []);
+  }
 
   TrackInfo? infoFor(String path) => _cache[path];
 
@@ -196,7 +219,8 @@ class TrackIndex extends ChangeNotifier {
         'v': _cacheVersion,
         't': {
           for (final entry in _cache.entries)
-            entry.key: [
+            if (!_unreadable.contains(entry.key))
+              entry.key: [
               entry.value.title,
               entry.value.artist,
               entry.value.album,
@@ -268,6 +292,8 @@ class TrackIndex extends ChangeNotifier {
         stale.add(path);
       }
     }
+    _readTotal = stale.length;
+    _readDone = 0;
     final validSet = valid.toSet();
     final before = _cache.length;
     _cache.removeWhere((path, _) => !validSet.contains(path));
@@ -290,6 +316,11 @@ class TrackIndex extends ChangeNotifier {
       if (generation != _generation) return; // llegó una lista más nueva
       for (final tag in tags) {
         final path = tag['path']! as String;
+        if (tag['failed'] == true) {
+          _unreadable.add(path);
+        } else {
+          _unreadable.remove(path);
+        }
         _cache[path] = TrackInfo(
           file: File(path),
           title: (tag['title'] as String?) ?? titleFromPath(path),
@@ -300,6 +331,7 @@ class TrackIndex extends ChangeNotifier {
         );
       }
       changed = true;
+      _readDone += batch.length;
       _publish(valid);
       // Se guarda de a poco: si la app se cierra a medias, no se pierde todo.
       if (++batches % 5 == 0) unawaited(_saveCache());
@@ -357,6 +389,7 @@ Map<String, Object?> _readTags(String path) {
   try {
     modified = file.lastModifiedSync().millisecondsSinceEpoch;
   } catch (_) {}
+  var failed = false;
   try {
     final meta = readMetadata(file, getImage: false);
     title = _clean(meta.title);
@@ -365,13 +398,16 @@ Map<String, Object?> _readTags(String path) {
     try {
       genre = _cleanGenre(meta.genres);
     } catch (_) {}
-  } catch (_) {}
+  } catch (_) {
+    failed = true;
+  }
   return {
     'path': path,
     'title': title,
     'artist': artist,
     'album': album,
     'genre': genre,
+    'failed': failed,
     'modified': modified,
   };
 }

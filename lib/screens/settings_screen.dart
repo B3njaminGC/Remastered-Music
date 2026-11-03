@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,6 +9,7 @@ import '../core/app_settings.dart';
 import '../core/audio_service.dart';
 import '../features/local/library_actions.dart';
 import '../library/library_repository.dart';
+import '../library/track_index.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
@@ -320,6 +323,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   enabled: !_scanning,
                   onTap: () => _runScan(_library.rescan),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.sell_outlined,
+                    color: Colors.deepOrange,
+                  ),
+                  title: const Text('Releer etiquetas de las canciones'),
+                  subtitle: const Text(
+                    'Vuelve a leer título, artista, álbum y género de todos '
+                    'los archivos. Útil si ves todo como "desconocido".',
+                  ),
+                  enabled: !_scanning,
+                  onTap: () {
+                    unawaited(TrackIndex.instance.rebuild());
+                    _snack(
+                      'Releyendo etiquetas… mirá el avance en Artistas o Géneros.',
+                    );
+                  },
                 ),
                 if (_scanning) const LinearProgressIndicator(),
               ],

@@ -45,7 +45,7 @@ class GroupsTab extends StatelessWidget {
             ),
           );
         }
-        return ListView.builder(
+        final list = ListView.builder(
           itemCount: groups.length,
           itemExtent: 72,
           itemBuilder: (context, i) {
@@ -85,6 +85,31 @@ class GroupsTab extends StatelessWidget {
               ),
             );
           },
+        );
+        final reading = index.loading && index.readTotal > 0;
+        if (!reading) return list;
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Leyendo etiquetas… ${index.readDone}/${index.readTotal}. '
+                    'Los nombres se irán completando.',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 6),
+                  LinearProgressIndicator(
+                    value: index.readDone / index.readTotal,
+                    color: Colors.deepOrange,
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: list),
+          ],
         );
       },
     );
