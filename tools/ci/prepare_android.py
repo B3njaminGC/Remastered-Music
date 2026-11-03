@@ -203,7 +203,8 @@ NOTIFICATION_ICONS = {
 KEEP_XML = (
     '<?xml version="1.0" encoding="utf-8"?>\n'
     '<resources xmlns:tools="http://schemas.android.com/tools"\n'
-    '    tools:keep="@drawable/*,@mipmap/*" />\n'
+    '    tools:keep="@drawable/ic_notification,@drawable/ic_heart,'
+    '@drawable/ic_heart_outline,@mipmap/ic_launcher" />\n'
 )
 
 

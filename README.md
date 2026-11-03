@@ -39,6 +39,11 @@ Para publicar una versión con nombre, crea un tag `v1.1.0` (Releases → *Draft
 > los permisos y el servicio de audio. Si algún día subes tu propia `android/`, se respeta y solo se completa lo que falte.
 > Sin tu `android/` original no existe el ecualizador del sistema (Ajustes avisa que no hay uno compatible).
 
+### Tamaño del APK
+El workflow compila solo para **arm64** (`--target-platform android-arm64`, todos los teléfonos de los últimos años): el APK
+pesa la mitad que el universal y se descarga e instala más rápido. Si alguna vez hace falta un teléfono de 32 bits, quitá esa
+opción del paso *Compilar APK*.
+
 ### Avisos de actualización
 Al abrir la app (máx. una vez cada 6 h) consulta `releases/latest` de este repo; si el `build-N` publicado es mayor que el
 `versionCode` instalado, muestra un aviso con **Descargar** (abre el APK en el navegador), **Más tarde** u **Omitir esta**.
