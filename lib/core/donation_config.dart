@@ -6,7 +6,7 @@ class DonationConfig {
   const DonationConfig._();
 
   /// Alias de Mercado Pago (se muestra con botón "Copiar").
-  static const String mercadoPagoAlias = '';
+  static const String mercadoPagoAlias = 'b3njamin.dev.mp';
 
   /// Link de pago de Mercado Pago, p. ej. `https://mpago.la/xxxxxxx`
   /// (se abre desde el botón "Donar con Mercado Pago").
