@@ -3,7 +3,8 @@
 Reproductor de música para Android que lee los archivos de tu dispositivo. Sin cuentas ni servidores; funciona sin internet (la búsqueda de letras en línea es opcional).
 
 ## Funciones
-- Biblioteca con pestañas: **Canciones · Favoritas · Listas · Artistas · Álbumes · Orígenes** (agrupados por las etiquetas del archivo).
+- Biblioteca con pestañas: **Canciones · Favoritas · Listas · Artistas · Álbumes · Géneros · Orígenes** (agrupados por las etiquetas del archivo).
+- **Géneros**: se arman solos con el género de las etiquetas (entiende los números ID3 como `(13)`); las canciones sin género van a *Sin género*. También podés crear tus propios géneros con un código corto (p. ej. `CB` = Cumbia), agregar canciones a mano desde el género (*Agregar canciones*) o desde el menú ⋮ de cualquier canción → *Cambiar género* (escribís el código o el nombre). Lo manual manda sobre la etiqueta.
 - **Origen de la descarga**: pestaña *Orígenes* y orden por origen (Snaptube, NewPipe, Vidmate, TubeMate, Telegram, WhatsApp, Chrome…). Se deduce de la carpeta del archivo; lo que está en *Descargas* sin carpeta propia aparece como "Descargas del navegador" y el resto se agrupa por nombre de carpeta. Para agregar más apps, edita `lib/library/track_source.dart`.
 - Orden por título, artista o fecha de incorporación; reproducción aleatoria.
 - Favoritas (♥), listas propias (crear, reordenar, quitar canciones, eliminar).

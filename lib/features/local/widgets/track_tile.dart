@@ -7,6 +7,7 @@ import '../../../core/widgets/track_artwork.dart';
 import '../../../library/favorites_repository.dart';
 import '../../../library/track_index.dart';
 import '../../../library/track_source.dart';
+import '../genre_dialogs.dart';
 import '../playlist_dialogs.dart';
 
 /// Fila de canción: carátula, título, artista y menú de acciones.
@@ -40,9 +41,16 @@ class TrackTile extends StatelessWidget {
   }
 }
 
-enum _TrackAction { play, playNext, addToQueue, addToPlaylist, favorite }
+enum _TrackAction {
+  play,
+  playNext,
+  addToQueue,
+  addToPlaylist,
+  favorite,
+  genre,
+}
 
-/// Menú "⋮" de una canción (reproducir, cola, lista, favorita).
+/// Menú "⋮" de una canción (reproducir, cola, lista, favorita, género).
 class TrackMenuButton extends StatelessWidget {
   const TrackMenuButton({super.key, required this.file, this.onPlay});
 
@@ -72,6 +80,8 @@ class TrackMenuButton extends StatelessWidget {
         final wasFavorite = repo.isFavorite(file.path);
         await repo.toggle(file.path);
         say(wasFavorite ? 'Quitada de favoritas.' : 'Añadida a favoritas.');
+      case _TrackAction.genre:
+        await showSongGenreDialog(context, file);
     }
   }
 
@@ -105,6 +115,10 @@ class TrackMenuButton extends StatelessWidget {
             child: Text(
               isFavorite ? 'Quitar de favoritas' : 'Añadir a favoritas',
             ),
+          ),
+          const PopupMenuItem(
+            value: _TrackAction.genre,
+            child: Text('Cambiar género'),
           ),
         ];
       },

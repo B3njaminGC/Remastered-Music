@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import 'favorites_tab.dart';
+import 'genre_dialogs.dart';
 import 'groups_tab.dart';
 import 'playlist_screen.dart';
 import 'playlist_service.dart';
 import 'songs_tab.dart';
 
-/// Biblioteca: Canciones · Favoritas · Listas · Artistas · Álbumes · Orígenes.
+/// Biblioteca: Canciones · Favoritas · Listas · Artistas · Álbumes · Géneros ·
+/// Orígenes.
 class LibraryScreen extends StatefulWidget {
   const LibraryScreen({super.key});
 
@@ -17,9 +19,10 @@ class LibraryScreen extends StatefulWidget {
 class _LibraryScreenState extends State<LibraryScreen>
     with SingleTickerProviderStateMixin {
   static const int _playlistsTab = 2;
+  static const int _genresTab = 5;
 
   late final TabController _tabController = TabController(
-    length: 6,
+    length: 7,
     vsync: this,
   )..addListener(_onTabChanged);
 
@@ -54,6 +57,7 @@ class _LibraryScreenState extends State<LibraryScreen>
             Tab(text: 'LISTAS'),
             Tab(text: 'ARTISTAS'),
             Tab(text: 'ÁLBUMES'),
+            Tab(text: 'GÉNEROS'),
             Tab(text: 'ORÍGENES'),
           ],
         ),
@@ -67,6 +71,15 @@ class _LibraryScreenState extends State<LibraryScreen>
               tooltip: 'Crear lista',
               child: const Icon(Icons.add),
             )
+          : _tabController.index == _genresTab
+          ? FloatingActionButton(
+              heroTag: null,
+              onPressed: () => showGenreFormDialog(context),
+              backgroundColor: Colors.deepOrange,
+              foregroundColor: Colors.white,
+              tooltip: 'Crear género',
+              child: const Icon(Icons.add),
+            )
           : null,
       body: TabBarView(
         controller: _tabController,
@@ -76,6 +89,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           PlaylistLibraryScreen(),
           GroupsTab(mode: GroupMode.artist),
           GroupsTab(mode: GroupMode.album),
+          GroupsTab(mode: GroupMode.genre),
           GroupsTab(mode: GroupMode.source),
         ],
       ),

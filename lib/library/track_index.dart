@@ -7,6 +7,7 @@ import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'genre_store.dart';
 import 'song_sort.dart';
 import 'track_source.dart';
 
@@ -27,6 +28,7 @@ class TrackInfo {
     required this.title,
     this.artist,
     this.album,
+    this.tagGenre,
     this.modified = 0,
   });
 
@@ -38,6 +40,9 @@ class TrackInfo {
   final String? artist;
   final String? album;
 
+  /// Género que trae el archivo en sus etiquetas (ya normalizado).
+  final String? tagGenre;
+
   /// Última modificación del archivo (ms desde epoch); 0 si aún no se leyó.
   final int modified;
 
@@ -47,15 +52,32 @@ class TrackInfo {
 
   /// App o carpeta de origen, deducida de la ruta (ver [TrackSource]).
   String get source => TrackSource.of(path);
+
+  /// `true` si la persona le asignó el género a mano.
+  bool get hasManualGenre => GenreStore.instance.overrideFor(path) != null;
+
+  /// Género efectivo: el asignado a mano, si no el del archivo, si no
+  /// [unknownGenreLabel].
+  String get genre {
+    final store = GenreStore.instance;
+    final manual = store.overrideFor(path);
+    if (manual != null) return store.byName(manual)?.name ?? manual;
+    final tag = tagGenre;
+    if (tag == null) return unknownGenreLabel;
+    return store.byName(tag)?.name ?? tag;
+  }
 }
 
-/// Artista o álbum con sus canciones.
+/// Artista, álbum o género con sus canciones.
 @immutable
 class TrackGroup {
-  const TrackGroup({required this.name, required this.tracks});
+  const TrackGroup({required this.name, required this.tracks, this.code = ''});
 
   final String name;
   final List<TrackInfo> tracks;
+
+  /// Código corto (solo géneros propios, p. ej. "CB").
+  final String code;
 
   List<File> get files => [for (final track in tracks) track.file];
 }
@@ -68,7 +90,13 @@ class TrackGroup {
 /// pantallas solo consultan este índice. Mientras llegan las etiquetas, las
 /// canciones aparecen con el nombre del archivo.
 class TrackIndex extends ChangeNotifier {
-  TrackIndex._();
+  TrackIndex._() {
+    // Si cambian géneros propios o asignaciones, los grupos se recalculan.
+    GenreStore.instance.addListener(() {
+      _genres = null;
+      notifyListeners();
+    });
+  }
 
   static final TrackIndex instance = TrackIndex._();
 
@@ -76,13 +104,14 @@ class TrackIndex extends ChangeNotifier {
 
   /// Versión del formato del archivo de caché (súbela si cambia cómo se leen
   /// las etiquetas, para descartar lo guardado).
-  static const int _cacheVersion = 2;
+  static const int _cacheVersion = 3;
 
   final Map<String, TrackInfo> _cache = {};
   List<TrackInfo> _tracks = const [];
   List<TrackGroup>? _artists;
   List<TrackGroup>? _albums;
   List<TrackGroup>? _sources;
+  List<TrackGroup>? _genres;
   bool _loading = false;
   int _generation = 0;
   ValueListenable<List<String>>? _source;
@@ -99,6 +128,34 @@ class TrackIndex extends ChangeNotifier {
   List<TrackGroup> get artists => _artists ??= _group((t) => t.artistLabel);
   List<TrackGroup> get albums => _albums ??= _group((t) => t.albumLabel);
   List<TrackGroup> get sources => _sources ??= _group((t) => t.source);
+
+  /// Géneros: los de las etiquetas, los asignados a mano y los propios (aunque
+  /// estén vacíos). "Sin género" va al final.
+  List<TrackGroup> get genres => _genres ??= _groupGenres();
+
+  List<TrackGroup> _groupGenres() {
+    final store = GenreStore.instance;
+    final base = _group((t) => t.genre);
+    final seen = {for (final group in base) genreKey(group.name)};
+    final all = <TrackGroup>[
+      for (final group in base)
+        TrackGroup(
+          name: group.name,
+          tracks: group.tracks,
+          code: store.byName(group.name)?.code ?? '',
+        ),
+      for (final def in store.defs)
+        if (!seen.contains(genreKey(def.name)))
+          TrackGroup(name: def.name, tracks: const <TrackInfo>[], code: def.code),
+    ];
+    all.sort((a, b) {
+      final aUnknown = a.name == unknownGenreLabel;
+      final bUnknown = b.name == unknownGenreLabel;
+      if (aUnknown != bUnknown) return aUnknown ? 1 : -1;
+      return a.name.toLowerCase().compareTo(b.name.toLowerCase());
+    });
+    return List<TrackGroup>.unmodifiable(all);
+  }
 
   /// Carga las etiquetas guardadas en disco. Con eso, al abrir la app toda la
   /// biblioteca aparece completa al instante y solo se leen las canciones
@@ -120,6 +177,7 @@ class TrackIndex extends ChangeNotifier {
             title: (value[0] as String?) ?? titleFromPath(path),
             artist: value[1] as String?,
             album: value[2] as String?,
+            tagGenre: value.length > 4 ? value[4] as String? : null,
             modified: (value[3] as num?)?.toInt() ?? 0,
           );
         }
@@ -143,6 +201,7 @@ class TrackIndex extends ChangeNotifier {
               entry.value.artist,
               entry.value.album,
               entry.value.modified,
+              entry.value.tagGenre,
             ],
         },
       };
@@ -236,6 +295,7 @@ class TrackIndex extends ChangeNotifier {
           title: (tag['title'] as String?) ?? titleFromPath(path),
           artist: tag['artist'] as String?,
           album: tag['album'] as String?,
+          tagGenre: tag['genre'] as String?,
           modified: (tag['modified'] as int?) ?? 0,
         );
       }
@@ -257,6 +317,7 @@ class TrackIndex extends ChangeNotifier {
     _artists = null;
     _albums = null;
     _sources = null;
+    _genres = null;
     notifyListeners();
   }
 
@@ -290,6 +351,7 @@ Map<String, Object?> _readTags(String path) {
   String? title;
   String? artist;
   String? album;
+  String? genre;
   var modified = 0;
   final file = File(path);
   try {
@@ -300,14 +362,90 @@ Map<String, Object?> _readTags(String path) {
     title = _clean(meta.title);
     artist = _clean(meta.artist);
     album = _clean(meta.album);
+    try {
+      genre = _cleanGenre(meta.genres);
+    } catch (_) {}
   } catch (_) {}
   return {
     'path': path,
     'title': title,
     'artist': artist,
     'album': album,
+    'genre': genre,
     'modified': modified,
   };
+}
+
+/// Géneros de la tabla ID3v1 (+ extensiones de Winamp), por número.
+const List<String> _id3v1Genres = <String>[
+  'Blues', 'Classic Rock', 'Country', 'Dance', 'Disco', 'Funk', 'Grunge',
+  'Hip-Hop', 'Jazz', 'Metal', 'New Age', 'Oldies', 'Other', 'Pop', 'R&B',
+  'Rap', 'Reggae', 'Rock', 'Techno', 'Industrial', 'Alternative', 'Ska',
+  'Death Metal', 'Pranks', 'Soundtrack', 'Euro-Techno', 'Ambient', 'Trip-Hop',
+  'Vocal', 'Jazz+Funk', 'Fusion', 'Trance', 'Classical', 'Instrumental',
+  'Acid', 'House', 'Game', 'Sound Clip', 'Gospel', 'Noise', 'Alternative Rock',
+  'Bass', 'Soul', 'Punk', 'Space', 'Meditative', 'Instrumental Pop',
+  'Instrumental Rock', 'Ethnic', 'Gothic', 'Darkwave', 'Techno-Industrial',
+  'Electronic', 'Pop-Folk', 'Eurodance', 'Dream', 'Southern Rock', 'Comedy',
+  'Cult', 'Gangsta', 'Top 40', 'Christian Rap', 'Pop/Funk', 'Jungle',
+  'Native American', 'Cabaret', 'New Wave', 'Psychedelic', 'Rave', 'Showtunes',
+  'Trailer', 'Lo-Fi', 'Tribal', 'Acid Punk', 'Acid Jazz', 'Polka', 'Retro',
+  'Musical', 'Rock & Roll', 'Hard Rock', 'Folk', 'Folk-Rock', 'National Folk',
+  'Swing', 'Fast Fusion', 'Bebop', 'Latin', 'Revival', 'Celtic', 'Bluegrass',
+  'Avantgarde', 'Gothic Rock', 'Progressive Rock', 'Psychedelic Rock',
+  'Symphonic Rock', 'Slow Rock', 'Big Band', 'Chorus', 'Easy Listening',
+  'Acoustic', 'Humour', 'Speech', 'Chanson', 'Opera', 'Chamber Music',
+  'Sonata', 'Symphony', 'Booty Bass', 'Primus', 'Porn Groove', 'Satire',
+  'Slow Jam', 'Club', 'Tango', 'Samba', 'Folklore', 'Ballad', 'Power Ballad',
+  'Rhythmic Soul', 'Freestyle', 'Duet', 'Punk Rock', 'Drum Solo', 'A Cappella',
+  'Euro-House', 'Dance Hall',
+];
+
+/// Valores que no sirven como género.
+const Set<String> _junkGenres = <String>{
+  'other', 'unknown', 'undefined', 'none', 'n/a', 'genre', 'blank', 'various',
+  '(none)', '(unknown)', 'sin género', 'sin genero', 'desconocido',
+};
+
+/// Primer género útil de la etiqueta. Entiende "(13)", "13", "(13)Pop" y
+/// varios géneros separados por ";".
+String? _cleanGenre(List<String> raw) {
+  for (final entry in raw) {
+    for (final part in entry.split(RegExp('[;\\u0000]'))) {
+      var text = _clean(part);
+      if (text == null) continue;
+      final withNumber = RegExp(r'^\((\d{1,3})\)\s*(.*)$').firstMatch(text);
+      final onlyNumber = RegExp(r'^\d{1,3}$').hasMatch(text);
+      if (withNumber != null) {
+        final name = withNumber.group(2)!.trim();
+        final number = int.parse(withNumber.group(1)!);
+        text = name.isNotEmpty
+            ? name
+            : (number < _id3v1Genres.length ? _id3v1Genres[number] : null);
+      } else if (onlyNumber) {
+        final number = int.parse(text);
+        text = number < _id3v1Genres.length ? _id3v1Genres[number] : null;
+      }
+      if (text == null) continue;
+      text = _tidyGenre(text);
+      if (text.isEmpty || _junkGenres.contains(text.toLowerCase())) continue;
+      return text;
+    }
+  }
+  return null;
+}
+
+/// Espacios normalizados y, si viene todo en minúsculas (o todo en mayúsculas
+/// y largo), se capitaliza cada palabra: "reggaeton" → "Reggaeton".
+String _tidyGenre(String text) {
+  final clean = text.replaceAll(RegExp(r'\s+'), ' ').trim();
+  final shouted = clean == clean.toUpperCase() && clean.length > 4;
+  if (clean != clean.toLowerCase() && !shouted) return clean;
+  return clean
+      .toLowerCase()
+      .split(' ')
+      .map((word) => word.isEmpty ? word : word[0].toUpperCase() + word.substring(1))
+      .join(' ');
 }
 
 String? _clean(String? value) {

@@ -31,6 +31,7 @@ class _SearchScreenState extends State<SearchScreen> {
         if (track.title.toLowerCase().contains(query) ||
             (track.artist ?? '').toLowerCase().contains(query) ||
             (track.album ?? '').toLowerCase().contains(query) ||
+            track.genre.toLowerCase().contains(query) ||
             titleFromPath(track.path).toLowerCase().contains(query))
           track,
     ];
