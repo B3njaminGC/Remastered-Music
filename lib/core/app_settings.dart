@@ -56,6 +56,13 @@ class AppSettings {
 
   Future<void> setSkippedBuild(int build) => _box.put('skipped_build', build);
 
+  /// Ya se explicó cómo activar las notificaciones desde Ajustes del sistema.
+  bool get notificationHintShown =>
+      _box.get('notification_hint_shown', defaultValue: false) == true;
+
+  Future<void> setNotificationHintShown(bool value) =>
+      _box.put('notification_hint_shown', value);
+
   SongSort get songSort => SongSort.fromName(_box.get('song_sort'));
 
   Future<void> setSongSort(SongSort value) => _box.put('song_sort', value.name);

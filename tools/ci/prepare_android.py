@@ -4,7 +4,7 @@
 1. Si el repo no tiene android/, la genera con `flutter create` (en una carpeta
    temporal, sin tocar lib/ ni pubspec.yaml) y la copia.
 2. Asegura, de forma idempotente, lo que necesita el reproductor en segundo plano
-   (just_audio_background / audio_service): permisos, <service>, <receiver> y
+   (audio_service): permisos, <service>, <receiver> y
    MainActivity extendiendo AudioServiceActivity.
 Si tu repo ya trae su propio android/, solo se añade lo que falte.
 """
@@ -186,6 +186,42 @@ def patch_main_activity():
             return
     print("::warning::No encontré MainActivity.")
 
+VECTOR = (
+    '<vector xmlns:android="http://schemas.android.com/apk/res/android"\n'
+    '    android:width="24dp" android:height="24dp"\n'
+    '    android:viewportWidth="24" android:viewportHeight="24">\n'
+    '    <path android:fillColor="#FFFFFFFF" android:pathData="{path}"/>\n'
+    '</vector>\n'
+)
+NOTIFICATION_ICONS = {
+    # Nota musical (ícono chico de la notificación).
+    "ic_notification": "M12,3v10.55c-0.59,-0.34 -1.27,-0.55 -2,-0.55 -2.21,0 -4,1.79 -4,4s1.79,4 4,4 4,-1.79 4,-4V7h4V3h-6z",
+    # Corazón vacío y lleno (botón de favorita).
+    "ic_heart_outline": "M16.5,3c-1.74,0 -3.41,0.81 -4.5,2.09C10.91,3.81 9.24,3 7.5,3 4.42,3 2,5.42 2,8.5c0,3.78 3.4,6.86 8.55,11.54L12,21.35l1.45,-1.32C18.6,15.36 22,12.28 22,8.5 22,5.42 19.58,3 16.5,3zM12.1,18.55l-0.1,0.1 -0.1,-0.1C7.14,14.24 4,11.39 4,8.5 4,6.5 5.5,5 7.5,5c1.54,0 3.04,0.99 3.57,2.36h1.87C13.46,5.99 14.96,5 16.5,5c2,0 3.5,1.5 3.5,3.5 0,2.89 -3.14,5.74 -7.9,10.05z",
+    "ic_heart": "M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z",
+}
+KEEP_XML = (
+    '<?xml version="1.0" encoding="utf-8"?>\n'
+    '<resources xmlns:tools="http://schemas.android.com/tools"\n'
+    '    tools:keep="@drawable/*,@mipmap/*" />\n'
+)
+
+
+def write_notification_resources():
+    """Íconos de la notificación (se piden por nombre, así que hay que impedir
+    que el compilador los quite como "sin usar")."""
+    res = os.path.join(ANDROID, "app", "src", "main", "res")
+    drawable = os.path.join(res, "drawable")
+    raw = os.path.join(res, "raw")
+    os.makedirs(drawable, exist_ok=True)
+    os.makedirs(raw, exist_ok=True)
+    for name, path in NOTIFICATION_ICONS.items():
+        with open(os.path.join(drawable, name + ".xml"), "w", encoding="utf-8") as f:
+            f.write(VECTOR.format(path=path))
+    with open(os.path.join(raw, "keep.xml"), "w", encoding="utf-8") as f:
+        f.write(KEEP_XML)
+    print("Íconos de notificación escritos:", ", ".join(NOTIFICATION_ICONS))
+
 
 if __name__ == "__main__":
     generated = generate_android()
@@ -195,5 +231,6 @@ if __name__ == "__main__":
     if generated:
         apply_branding()
     patch_manifest()
+    write_notification_resources()
     patch_main_activity()
     patch_signing()

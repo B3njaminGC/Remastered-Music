@@ -8,8 +8,10 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../library/track_index.dart';
+import '../theme/app_theme.dart';
 import 'app_settings.dart';
 import 'artwork_cache.dart';
+import 'player_handler.dart';
 
 /// Reproductor de música local (solo archivos del dispositivo).
 ///
@@ -49,6 +51,7 @@ class AudioService {
   bool _pauseWhenHeadphonesDisconnected = true;
   StreamSubscription<void>? _becomingNoisySubscription;
   Timer? _sleepTimer;
+  PlayerHandler? _handler;
 
   AudioPlayer get player => _player;
   int get currentIndex => _currentIndex;
@@ -89,6 +92,36 @@ class AudioService {
 
   Future<void> setPauseWhenHeadphonesDisconnected(bool enabled) async {
     _pauseWhenHeadphonesDisconnected = enabled;
+  }
+
+  /// Activa la notificación de reproducción y los controles del sistema
+  /// (panel de medios, pantalla de bloqueo). Llamar una vez al iniciar.
+  Future<void> initNotification() async {
+    final handler = await media.AudioService.init<PlayerHandler>(
+      builder: () => PlayerHandler(
+        player: _player,
+        onNext: playNext,
+        onPrevious: playPrevious,
+        currentPath: () => currentFile?.path,
+      ),
+      config: media.AudioServiceConfig(
+        // Canal nuevo: no hereda ajustes viejos (silenciado, etc.).
+        androidNotificationChannelId: 'resonar.reproduccion',
+        androidNotificationChannelName: 'Reproducción de música',
+        androidNotificationChannelDescription:
+            'Controles de la canción que está sonando',
+        androidNotificationIcon: 'drawable/ic_notification',
+        // La notificación queda aunque pauses; se cierra con la ✕.
+        androidNotificationOngoing: false,
+        androidStopForegroundOnPause: false,
+        notificationColor: AppTheme.primaryOrange,
+        artDownscaleWidth: 256,
+        artDownscaleHeight: 256,
+      ),
+    );
+    _handler = handler;
+    final file = currentFile;
+    if (file != null) handler.setItem(_itemFor(file));
   }
 
   Future<void> _configureAudioSession() async {
@@ -198,13 +231,17 @@ class AudioService {
     artistNotifier.value = info.artistLabel;
     albumNotifier.value = info.album;
     artworkBytesNotifier.value = null;
+    _handler?.setItem(_itemFor(file));
     unawaited(_loadArtwork(file));
   }
 
   Future<void> _loadArtwork(File file) async {
     final bytes = await ArtworkCache.bytesFor(file.path);
     // Si mientras tanto cambió la pista, esta carátula ya no corresponde.
-    if (currentFile?.path == file.path) artworkBytesNotifier.value = bytes;
+    if (currentFile?.path != file.path) return;
+    artworkBytesNotifier.value = bytes;
+    // La carátula recién extraída también va a la notificación.
+    if (bytes != null) _handler?.setItem(_itemFor(file));
   }
 
   // ----------------------------------------------------------------- cola
@@ -337,6 +374,7 @@ class AudioService {
     artistNotifier.value = null;
     albumNotifier.value = null;
     artworkBytesNotifier.value = null;
+    _handler?.clearItem();
     unawaited(AppSettings.instance.saveSession(queue: <String>[], index: 0, positionMs: 0));
     await _player.stop();
   }

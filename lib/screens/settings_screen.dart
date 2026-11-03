@@ -209,21 +209,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeThumbColor: Colors.deepOrange,
                   onChanged: _setPauseOnHeadphoneDisconnect,
                 ),
-                ListTile(
-                  leading: const Icon(
-                    Icons.notifications_active_outlined,
-                    color: Colors.deepOrange,
-                  ),
-                  title: const Text('Notificación del reproductor'),
-                  subtitle: const Text(
-                    'Para ver y controlar la canción (pausa, siguiente, '
-                    'progreso) desde las notificaciones y la pantalla de '
-                    'bloqueo hace falta permitir las notificaciones.',
-                  ),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: () async {
-                    final status = await Permission.notification.request();
-                    if (!status.isGranted) await openAppSettings();
+                FutureBuilder<PermissionStatus>(
+                  future: Permission.notification.status,
+                  builder: (context, snapshot) {
+                    final granted = snapshot.data?.isGranted ?? false;
+                    return ListTile(
+                      leading: const Icon(
+                        Icons.notifications_active_outlined,
+                        color: Colors.deepOrange,
+                      ),
+                      title: const Text('Notificación del reproductor'),
+                      subtitle: Text(
+                        granted
+                            ? 'Activada: ves y controlás la canción desde '
+                                  'las notificaciones y la pantalla de bloqueo.'
+                            : 'Desactivada: permitila para ver y controlar la '
+                                  'canción (pausa, siguiente, progreso) desde '
+                                  'las notificaciones.',
+                      ),
+                      trailing: Icon(
+                        granted ? Icons.check_circle : Icons.open_in_new,
+                        color: granted ? Colors.green : null,
+                      ),
+                      onTap: granted
+                          ? null
+                          : () async {
+                              final status = await Permission.notification
+                                  .request();
+                              if (!status.isGranted) await openAppSettings();
+                              if (mounted) setState(() {});
+                            },
+                    );
                   },
                 ),
                 SwitchListTile(

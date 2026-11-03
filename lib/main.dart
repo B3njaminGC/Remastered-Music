@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:just_audio_background/just_audio_background.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -41,15 +40,9 @@ Future<void> main() async {
   }
   await ArtworkCache.init();
   await LyricsService.instance.init();
-  await JustAudioBackground.init(
-    androidNotificationChannelId: 'com.example.play_music_app.audio',
-    androidNotificationChannelName: 'Reproducción de música',
-    androidNotificationChannelDescription: 'Controles de reproducción de audio',
-    notificationColor: AppTheme.primaryOrange,
-    androidNotificationOngoing: true,
-    artDownscaleWidth: 256,
-    artDownscaleHeight: 256,
-  );
+  // Notificación y controles del sistema (carátula, progreso, ♥, anterior,
+  // pausa, siguiente, cerrar).
+  await AudioService().initNotification();
   await AudioService().setPauseWhenHeadphonesDisconnected(
     AppSettings.instance.pauseOnHeadphoneDisconnect,
   );
@@ -188,9 +181,38 @@ class _MainContainerState extends State<MainContainer> {
 
   Future<void> _askNotificationPermission() async {
     try {
-      if (await Permission.notification.isDenied) {
-        await Permission.notification.request();
-      }
+      var status = await Permission.notification.status;
+      if (status.isGranted) return;
+      if (status.isDenied) status = await Permission.notification.request();
+      if (status.isGranted || !mounted) return;
+      // El sistema ya no muestra el cartel: se explica una vez y se ofrece ir
+      // directo a los ajustes de la app.
+      final settings = AppSettings.instance;
+      if (settings.notificationHintShown) return;
+      await settings.setNotificationHintShown(true);
+      if (!mounted) return;
+      final open = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('Activá las notificaciones'),
+          content: const Text(
+            'Sin este permiso no vas a ver los controles de la canción '
+            '(pausa, siguiente, progreso) en las notificaciones ni en la '
+            'pantalla de bloqueo.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Ahora no'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Abrir ajustes'),
+            ),
+          ],
+        ),
+      );
+      if (open == true) await openAppSettings();
     } catch (_) {
       // Plataforma sin este permiso: no pasa nada.
     }
