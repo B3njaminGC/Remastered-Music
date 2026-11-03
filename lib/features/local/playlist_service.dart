@@ -134,6 +134,24 @@ class PlaylistService {
     await box.put(name, List<String>.of(paths));
   }
 
+  /// Cambia el nombre de una lista conservando sus canciones y su orden.
+  Future<void> renamePlaylist(String oldName, String newName) async {
+    final normalized = newName.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(newName, 'name', 'El nombre no puede estar vacío.');
+    }
+    if (normalized == oldName) return;
+    final box = await _openBox();
+    final exists = box.keys.whereType<String>().any(
+      (key) =>
+          key != oldName && key.toLowerCase() == normalized.toLowerCase(),
+    );
+    if (exists) throw StateError('Ya existe una lista con ese nombre.');
+    final paths = box.get(oldName)?.cast<String>().toList() ?? <String>[];
+    await box.put(normalized, paths);
+    await box.delete(oldName);
+  }
+
   Future<void> deletePlaylist(String name) async {
     final box = await _openBox();
     await box.delete(name);

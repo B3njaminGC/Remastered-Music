@@ -35,17 +35,78 @@ Future<void> showCreatePlaylistDialog(BuildContext context) async {
   }
 }
 
+/// Pide un nombre nuevo para [name] y la renombra. Devuelve el nombre nuevo
+/// o null si se canceló.
+Future<String?> showRenamePlaylistDialog(
+  BuildContext context,
+  String name,
+) async {
+  final messenger = ScaffoldMessenger.of(context);
+  final newName = await showDialog<String>(
+    context: context,
+    barrierDismissible: false,
+    builder: (_) => _CreatePlaylistDialog(
+      title: 'Cambiar nombre',
+      confirmLabel: 'Guardar',
+      initialName: name,
+      onCreate: (value) => PlaylistService().renamePlaylist(name, value),
+    ),
+  );
+  if (newName != null && newName != name) {
+    messenger
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text('Lista renombrada a "$newName".')));
+  }
+  return newName;
+}
+
+/// Pregunta y, si se confirma, elimina la lista. Devuelve true si se eliminó.
+Future<bool> confirmDeletePlaylist(BuildContext context, String name) async {
+  final confirmed = await showDialog<bool>(
+    context: context,
+    builder: (context) => AlertDialog(
+      title: const Text('Eliminar lista'),
+      content: Text(
+        '¿Eliminar "$name"? Las canciones no se borran del dispositivo.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.of(context).pop(false),
+          child: const Text('Cancelar'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.of(context).pop(true),
+          child: const Text('Eliminar'),
+        ),
+      ],
+    ),
+  );
+  if (confirmed != true) return false;
+  await PlaylistService().deletePlaylist(name);
+  return true;
+}
+
 class _CreatePlaylistDialog extends StatefulWidget {
-  const _CreatePlaylistDialog({required this.onCreate});
+  const _CreatePlaylistDialog({
+    required this.onCreate,
+    this.title = 'Nueva lista',
+    this.confirmLabel = 'Crear',
+    this.initialName = '',
+  });
 
   final Future<void> Function(String name) onCreate;
+  final String title;
+  final String confirmLabel;
+  final String initialName;
 
   @override
   State<_CreatePlaylistDialog> createState() => _CreatePlaylistDialogState();
 }
 
 class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
-  final TextEditingController _controller = TextEditingController();
+  late final TextEditingController _controller = TextEditingController(
+    text: widget.initialName,
+  );
   bool _busy = false;
   String? _error;
 
@@ -78,7 +139,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: const Text('Nueva lista'),
+      title: Text(widget.title),
       content: TextField(
         controller: _controller,
         autofocus: true,
@@ -101,7 +162,7 @@ class _CreatePlaylistDialogState extends State<_CreatePlaylistDialog> {
         ),
         FilledButton(
           onPressed: _busy ? null : _submit,
-          child: const Text('Crear'),
+          child: Text(widget.confirmLabel),
         ),
       ],
     );

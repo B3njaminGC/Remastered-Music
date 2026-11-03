@@ -7,6 +7,7 @@ import '../../core/audio_service.dart';
 import '../../core/widgets/mini_player.dart';
 import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
+import 'playlist_dialogs.dart';
 import 'playlist_service.dart';
 import 'playlist_transfer.dart';
 
@@ -51,7 +52,20 @@ class PlaylistLibraryScreen extends StatelessWidget {
                     ),
               title: Text(name),
               subtitle: Text('${paths.length} canciones'),
-              trailing: const Icon(Icons.chevron_right),
+              trailing: PopupMenuButton<String>(
+                tooltip: 'Opciones de la lista',
+                onSelected: (value) {
+                  if (value == 'rename') {
+                    showRenamePlaylistDialog(context, name);
+                  } else {
+                    confirmDeletePlaylist(context, name);
+                  }
+                },
+                itemBuilder: (_) => const [
+                  PopupMenuItem(value: 'rename', child: Text('Cambiar nombre')),
+                  PopupMenuItem(value: 'delete', child: Text('Eliminar')),
+                ],
+              ),
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute<void>(
                   builder: (_) => PlaylistDetailScreen(name: name),
@@ -77,6 +91,7 @@ class PlaylistDetailScreen extends StatefulWidget {
 class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   final PlaylistService _playlistService = PlaylistService();
   final AudioService _audioService = AudioService();
+  late String _name = widget.name;
   List<String> _paths = [];
   bool _loading = true;
 
@@ -87,10 +102,10 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
   }
 
   Future<void> _loadTracks() async {
-    final storedPaths = await _playlistService.getTrackPaths(widget.name);
+    final storedPaths = await _playlistService.getTrackPaths(_name);
     final paths = storedPaths.where((path) => File(path).existsSync()).toList();
     if (paths.length != storedPaths.length) {
-      await _playlistService.saveTrackOrder(widget.name, paths);
+      await _playlistService.saveTrackOrder(_name, paths);
     }
     if (!mounted) return;
     setState(() {
@@ -104,38 +119,24 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     final path = paths.removeAt(oldIndex);
     paths.insert(newIndex, path);
     setState(() => _paths = paths);
-    await _playlistService.saveTrackOrder(widget.name, paths);
+    await _playlistService.saveTrackOrder(_name, paths);
   }
 
   Future<void> _removeTrack(String path) async {
     setState(() => _paths = _paths.where((p) => p != path).toList());
-    await _playlistService.removeTrack(widget.name, path);
+    await _playlistService.removeTrack(_name, path);
   }
 
   Future<void> _confirmDelete() async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Eliminar lista'),
-        content: Text(
-          '¿Eliminar "${widget.name}"? Las canciones no se borran del dispositivo.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: const Text('Eliminar'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await _playlistService.deletePlaylist(widget.name);
-    if (!mounted) return;
+    final deleted = await confirmDeletePlaylist(context, _name);
+    if (!deleted || !mounted) return;
     Navigator.of(context).pop();
+  }
+
+  Future<void> _rename() async {
+    final newName = await showRenamePlaylistDialog(context, _name);
+    if (newName == null || !mounted) return;
+    setState(() => _name = newName);
   }
 
   @override
@@ -143,7 +144,7 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
     final songs = _paths.map(File.new).toList();
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.name),
+        title: Text(_name),
         actions: [
           if (songs.isNotEmpty)
             IconButton(
@@ -155,8 +156,13 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
             IconButton(
               tooltip: 'Exportar como .m3u',
               icon: const Icon(Icons.ios_share),
-              onPressed: () => exportPlaylistAsM3u(context, widget.name, _paths),
+              onPressed: () => exportPlaylistAsM3u(context, _name, _paths),
             ),
+          IconButton(
+            tooltip: 'Cambiar nombre',
+            icon: const Icon(Icons.edit_outlined),
+            onPressed: _rename,
+          ),
           IconButton(
             tooltip: 'Eliminar lista',
             icon: const Icon(Icons.delete_outline),
