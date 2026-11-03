@@ -108,7 +108,7 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Reproductor FOSS',
+      title: 'Cadencia',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: _messengerKey,
       themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
@@ -202,7 +202,7 @@ class _MainContainerState extends State<MainContainer> {
           children: [
             Icon(Icons.music_note, color: Colors.deepOrange),
             SizedBox(width: 8),
-            Expanded(child: Text('Acerca de Reproductor FOSS')),
+            Expanded(child: Text('Acerca de Cadencia')),
           ],
         ),
         content: const SingleChildScrollView(
@@ -211,7 +211,7 @@ class _MainContainerState extends State<MainContainer> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Versión 1.1.0 • Open Source',
+                'Versión 1.2.0 • Open Source',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
@@ -269,7 +269,7 @@ class _MainContainerState extends State<MainContainer> {
       child: Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Reproductor FOSS',
+          'Cadencia',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: Builder(
@@ -286,7 +286,7 @@ class _MainContainerState extends State<MainContainer> {
             const UserAccountsDrawerHeader(
               decoration: BoxDecoration(color: Colors.deepOrange),
               accountName: Text(
-                'Reproductor FOSS',
+                'Cadencia',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               accountEmail: Text('Reproductor de música offline'),

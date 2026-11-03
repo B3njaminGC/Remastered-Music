@@ -8,6 +8,7 @@ import '../../core/widgets/mini_player.dart';
 import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
 import 'playlist_service.dart';
+import 'playlist_transfer.dart';
 
 class PlaylistLibraryScreen extends StatelessWidget {
   const PlaylistLibraryScreen({super.key});
@@ -149,6 +150,12 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
               tooltip: 'Reproducir al azar',
               icon: const Icon(Icons.shuffle),
               onPressed: () => _audioService.playShuffled(songs),
+            ),
+          if (songs.isNotEmpty)
+            IconButton(
+              tooltip: 'Exportar como .m3u',
+              icon: const Icon(Icons.ios_share),
+              onPressed: () => exportPlaylistAsM3u(context, widget.name, _paths),
             ),
           IconButton(
             tooltip: 'Eliminar lista',

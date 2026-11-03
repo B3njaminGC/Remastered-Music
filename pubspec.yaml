@@ -4,7 +4,7 @@ description: "Reproductor de música 100% offline, de código abierto."
 publish_to: 'none'
 
 # versión+build. En Android: versionName+versionCode.
-version: 1.1.0+2
+version: 1.2.0+3
 
 environment:
   sdk: ^3.13.5

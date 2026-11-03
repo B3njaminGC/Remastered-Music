@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import '../../core/audio_service.dart';
 import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
+import 'playlist_transfer.dart';
 
 class QueueScreen extends StatelessWidget {
   const QueueScreen({super.key, this.showAppBar = false});
@@ -49,7 +50,7 @@ class _Queue extends StatelessWidget {
       initialData: audio.currentIndex,
       builder: (context, snapshot) {
         final currentIndex = snapshot.data;
-        return ReorderableListView.builder(
+        final list = ReorderableListView.builder(
           itemCount: files.length,
           onReorderItem: audio.reorderQueue,
           itemBuilder: (context, index) {
@@ -119,6 +120,32 @@ class _Queue extends StatelessWidget {
               ),
             );
           },
+        );
+        return Column(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(8, 4, 8, 0),
+              child: Row(
+                children: [
+                  TextButton.icon(
+                    onPressed: () =>
+                        showSaveQueueAsPlaylistDialog(context, files),
+                    icon: const Icon(Icons.playlist_add),
+                    label: const Text('Guardar como lista'),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Exportar cola como .m3u',
+                    icon: const Icon(Icons.ios_share),
+                    onPressed: () => exportPlaylistAsM3u(context, 'Cola actual', [
+                      for (final file in files) file.path,
+                    ]),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(child: list),
+          ],
         );
       },
     );

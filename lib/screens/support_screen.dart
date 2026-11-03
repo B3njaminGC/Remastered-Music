@@ -52,7 +52,7 @@ class SupportScreen extends StatelessWidget {
           const Icon(Icons.favorite, size: 64, color: Colors.deepOrange),
           const SizedBox(height: 16),
           Text(
-            '¡Gracias por usar Reproductor FOSS!',
+            '¡Gracias por usar Cadencia!',
             textAlign: TextAlign.center,
             style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
           ),

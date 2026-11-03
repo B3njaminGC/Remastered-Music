@@ -5,6 +5,7 @@ import 'genre_dialogs.dart';
 import 'groups_tab.dart';
 import 'playlist_screen.dart';
 import 'playlist_service.dart';
+import 'playlist_transfer.dart';
 import 'songs_tab.dart';
 
 /// Biblioteca: Canciones · Favoritas · Listas · Artistas · Álbumes · Géneros ·
@@ -63,13 +64,26 @@ class _LibraryScreenState extends State<LibraryScreen>
         ),
       ),
       floatingActionButton: _tabController.index == _playlistsTab
-          ? FloatingActionButton(
-              heroTag: null,
-              onPressed: () => showCreatePlaylistDialog(context),
-              backgroundColor: Colors.deepOrange,
-              foregroundColor: Colors.white,
-              tooltip: 'Crear lista',
-              child: const Icon(Icons.add),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                FloatingActionButton.small(
+                  heroTag: null,
+                  onPressed: () => importM3uPlaylist(context),
+                  tooltip: 'Importar lista (.m3u)',
+                  child: const Icon(Icons.file_download_outlined),
+                ),
+                const SizedBox(height: 12),
+                FloatingActionButton(
+                  heroTag: null,
+                  onPressed: () => showCreatePlaylistDialog(context),
+                  backgroundColor: Colors.deepOrange,
+                  foregroundColor: Colors.white,
+                  tooltip: 'Crear lista',
+                  child: const Icon(Icons.add),
+                ),
+              ],
             )
           : _tabController.index == _genresTab
           ? FloatingActionButton(

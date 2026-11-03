@@ -1,4 +1,4 @@
-# Reproductor FOSS — música 100 % offline
+# Cadencia — música 100 % offline
 
 Reproductor de música para Android que lee los archivos de tu dispositivo. Sin cuentas ni servidores; funciona sin internet (la búsqueda de letras en línea es opcional).
 
@@ -41,7 +41,7 @@ Para publicar una versión con nombre, crea un tag `v1.1.0` (Releases → *Draft
 
 ### Nombre, ícono y paquete
 Cuando el workflow genera `android/`, aplica el ícono propio (`tools/ci/icon/`, regenerable con `tools/ci/make_icons.py`),
-el nombre "Reproductor FOSS" y el paquete `com.b3njamingc.play_music_app` (distinto del de las pruebas anteriores,
+el nombre "Cadencia" y el paquete `com.b3njamingc.play_music_app` (distinto del de las pruebas anteriores,
 `com.example.play_music_app`, así que conviven sin conflicto de firma). Cada build sube el `versionCode` con el número de ejecución.
 
 ### Firma estable (recomendado)
