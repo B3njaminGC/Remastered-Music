@@ -31,7 +31,7 @@ class LyricsService {
 
   static const String _boxName = 'lyrics_cache';
   static const String _userAgent =
-      'Cadencia/1.2 (https://github.com/B3njaminGC/Remastered-Music)';
+      'Resonar/1.2 (https://github.com/B3njaminGC/Remastered-Music)';
   static const Duration _retryNegativeAfter = Duration(days: 7);
 
   Box? _box;

@@ -16,7 +16,7 @@ class OnboardingScreen extends StatelessWidget {
               const Icon(Icons.music_note, size: 90, color: Colors.deepOrange),
               const SizedBox(height: 24),
               const Text(
-                "Bienvenido a Cadencia",
+                "Bienvenido a Resonar",
                 style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),

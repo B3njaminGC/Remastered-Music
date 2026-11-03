@@ -45,7 +45,7 @@ RECEIVER = """        <receiver android:name="com.ryanheise.audioservice.MediaBu
 """
 
 
-APP_LABEL = "Cadencia"
+APP_LABEL = "Resonar"
 ICON_RES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "icon", "res")
 
 

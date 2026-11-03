@@ -95,7 +95,7 @@ jobs:
             gh release upload "$TAG" "$FILE" --clobber
           else
             gh release create "$TAG" "$FILE" \
-              --title "Cadencia $TAG" \
+              --title "Resonar $TAG" \
               --notes "APK generado automáticamente desde el commit ${GITHUB_SHA::7}." \
               --target "$GITHUB_SHA"
           fi

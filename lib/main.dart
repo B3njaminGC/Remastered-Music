@@ -108,7 +108,7 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Cadencia',
+      title: 'Resonar',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: _messengerKey,
       themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
@@ -202,7 +202,7 @@ class _MainContainerState extends State<MainContainer> {
           children: [
             Icon(Icons.music_note, color: Colors.deepOrange),
             SizedBox(width: 8),
-            Expanded(child: Text('Acerca de Cadencia')),
+            Expanded(child: Text('Acerca de Resonar')),
           ],
         ),
         content: const SingleChildScrollView(
@@ -269,7 +269,7 @@ class _MainContainerState extends State<MainContainer> {
       child: Scaffold(
       appBar: AppBar(
         title: const Text(
-          'Cadencia',
+          'Resonar',
           style: TextStyle(fontWeight: FontWeight.bold),
         ),
         leading: Builder(
@@ -286,7 +286,7 @@ class _MainContainerState extends State<MainContainer> {
             const UserAccountsDrawerHeader(
               decoration: BoxDecoration(color: Colors.deepOrange),
               accountName: Text(
-                'Cadencia',
+                'Resonar',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
               accountEmail: Text('Reproductor de música offline'),
