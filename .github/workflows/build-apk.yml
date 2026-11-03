@@ -59,7 +59,10 @@ jobs:
         continue-on-error: true
 
       - name: Compilar APK
-        run: flutter build apk --release --build-number=${{ github.run_number }}
+        run: >-
+          flutter build apk --release
+          --build-number=${{ github.run_number }}
+          --dart-define=BUILD_NUMBER=${{ github.run_number }}
 
       - name: Mostrar firma del APK (informativo)
         continue-on-error: true

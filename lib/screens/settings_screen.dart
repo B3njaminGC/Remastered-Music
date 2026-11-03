@@ -66,7 +66,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (!mounted) return;
       if (update == null) {
         final current = await UpdateChecker.instance.installed();
-        _snack('Ya tenés la última versión (build ${current.build}).');
+        _snack(
+          current.build == 0
+              ? 'Compilación local: no se puede comparar versiones.'
+              : 'Ya tenés la última versión (build ${current.build}).',
+        );
       } else {
         await showUpdateDialog(context, update);
       }

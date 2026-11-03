@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:package_info_plus/package_info_plus.dart';
-
 /// Datos de la última versión publicada en GitHub Releases.
 class UpdateInfo {
   const UpdateInfo({
@@ -29,7 +27,8 @@ class UpdateInfo {
 /// Compara la versión instalada con la última release de un repo de GitHub.
 ///
 /// Para reutilizarlo en otra app: copiá este archivo, cambiá [owner] y [repo]
-/// y asegurate de que tus releases se llamen `build-N` con N = versionCode.
+/// pasá `--dart-define=BUILD_NUMBER=N` al compilar y asegurate de que tus
+/// releases se llamen `build-N` con ese mismo N.
 class UpdateChecker {
   UpdateChecker._();
 
@@ -38,11 +37,11 @@ class UpdateChecker {
   static const String owner = 'B3njaminGC';
   static const String repo = 'Remastered-Music';
 
-  /// Build instalado (versionCode) y versión legible, p. ej. "1.2.0".
-  Future<({int build, String version})> installed() async {
-    final info = await PackageInfo.fromPlatform();
-    return (build: int.tryParse(info.buildNumber) ?? 0, version: info.version);
-  }
+  /// Build instalado: el workflow lo pasa con `--dart-define=BUILD_NUMBER=N`
+  /// (el mismo N del versionCode). En compilaciones locales vale 0.
+  static const int installedBuild = int.fromEnvironment('BUILD_NUMBER');
+
+  Future<({int build})> installed() async => (build: installedBuild);
 
   /// Última release publicada. Lanza si no hay conexión o GitHub no responde.
   Future<UpdateInfo?> fetchLatest() async {
@@ -124,6 +123,7 @@ class UpdateChecker {
   Future<UpdateInfo?> check() async {
     final current = await installed();
     final latest = await fetchLatest();
+    if (current.build == 0) return null; // compilación local: no se compara
     if (latest == null) return null;
     return latest.build > current.build ? latest : null;
   }
