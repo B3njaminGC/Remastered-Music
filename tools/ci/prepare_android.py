@@ -29,6 +29,11 @@ PERMISSIONS = [
     ("android.permission.REQUEST_INSTALL_PACKAGES", ""),
 ]
 
+UNUSED_PERMISSIONS = [
+    "android.permission.READ_MEDIA_IMAGES",
+    "android.permission.READ_MEDIA_VIDEO",
+]
+
 SERVICE = """        <service android:name="com.ryanheise.audioservice.AudioService"
             android:foregroundServiceType="mediaPlayback"
             android:exported="true">
@@ -87,6 +92,24 @@ def patch_manifest():
         lines = "".join(f'    <uses-permission android:name="{n}"{a} />\n' for n, a in missing)
         text = text.replace("<application", lines + "    <application", 1)
         changed.append("permisos: " + ", ".join(n.split(".")[-1] for n, _ in missing))
+    # Una librería (carátulas) declara permisos de fotos y videos que la app no
+    # usa: se quitan para que Android solo pida "Música y audio".
+    if "xmlns:tools" not in text:
+        text = text.replace(
+            "<manifest ",
+            '<manifest xmlns:tools="http://schemas.android.com/tools" ',
+            1,
+        )
+        changed.append("namespace tools")
+    removals = [
+        p for p in UNUSED_PERMISSIONS if f'android:name="{p}" tools:node="remove"' not in text
+    ]
+    if removals:
+        lines = "".join(
+            f'    <uses-permission android:name="{p}" tools:node="remove" />\n' for p in removals
+        )
+        text = text.replace("<application", lines + "    <application", 1)
+        changed.append("permisos quitados: " + ", ".join(p.split(".")[-1] for p in removals))
     extra = ""
     if "com.ryanheise.audioservice.AudioService" not in text:
         extra += SERVICE

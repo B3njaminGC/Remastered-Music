@@ -4,6 +4,7 @@ import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:on_audio_query_pluse/on_audio_query.dart';
+import 'package:permission_handler/permission_handler.dart';
 
 Uint8List? _readLocalArtwork(String path) {
   try {
@@ -20,7 +21,12 @@ Future<Map<String, int>>? _mediaStoreSongIds;
 Future<Map<String, int>> _loadMediaStoreSongIds() async {
   if (!Platform.isAndroid) return const <String, int>{};
   try {
-    if (!await _audioQuery.checkAndRequest()) return const <String, int>{};
+    // No se pide ningún permiso acá (la librería pedía también fotos y
+    // videos): se usa el de audio que la app ya pidió al empezar.
+    if (!await Permission.audio.isGranted &&
+        !await Permission.storage.isGranted) {
+      return const <String, int>{};
+    }
     final songs = await _audioQuery.querySongs();
     return {for (final song in songs) song.data.toLowerCase(): song.id};
   } catch (error) {
