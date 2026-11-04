@@ -59,11 +59,20 @@ jobs:
         continue-on-error: true
 
       - name: Compilar APK
-        run: >-
-          flutter build apk --release
-          --target-platform android-arm64
-          --build-number=${{ github.run_number }}
-          --dart-define=BUILD_NUMBER=${{ github.run_number }}
+        # La descarga del NDK/CMake de Google falla a veces ("Error reading Zip
+        # content"); se reintenta hasta 3 veces antes de dar el build por roto.
+        run: |
+          for attempt in 1 2 3; do
+            if flutter build apk --release \
+              --target-platform android-arm64 \
+              --build-number=${{ github.run_number }} \
+              --dart-define=BUILD_NUMBER=${{ github.run_number }}; then
+              exit 0
+            fi
+            echo "::warning::Intento $attempt fallido; reintentando…"
+            sleep 10
+          done
+          exit 1
 
       - name: Mostrar firma del APK (informativo)
         continue-on-error: true
