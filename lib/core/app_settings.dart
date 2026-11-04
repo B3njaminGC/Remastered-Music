@@ -53,6 +53,11 @@ class AppSettings {
 
   Future<void> setDynamicColors(bool value) => _box.put('dynamic_colors', value);
 
+  /// Segundos de fundido al empezar y terminar cada canción (0 = apagado).
+  int get fadeSeconds => (_box.get('fade_seconds') as num?)?.toInt() ?? 0;
+
+  Future<void> setFadeSeconds(int value) => _box.put('fade_seconds', value);
+
   /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
   bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
 

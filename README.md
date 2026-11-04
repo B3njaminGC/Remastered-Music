@@ -19,6 +19,9 @@ Lee los archivos de tu teléfono. Sin cuentas, sin servidores, sin publicidad.
 - **Listas portables:** importá y exportá archivos `.m3u`; guardá la cola actual como lista.
 - **Letras sincronizadas** (del archivo, de un `.lrc` o, opcionalmente, de [lrclib.net](https://lrclib.net)).
 - **Control desde la notificación y la pantalla de bloqueo:** carátula, progreso, ♥, anterior, pausa, siguiente.
+- **Temas:** claro, oscuro, AMOLED o el del sistema, con el color de acento que elijas; "Sonando" toma el color de la carátula.
+- **Listas inteligentes** (Más escuchadas, Agregadas recientemente, Redescubrí) y **Tu resumen** de escucha, calculado solo en tu teléfono.
+- Fundido entre canciones, letra a pantalla completa, gestos para cambiar de tema.
 - Temporizador de apagado, velocidad 0,5×–2×, cola editable, ecualizador del sistema, modo oscuro.
 - Retoma la última canción al abrir; arranca al instante gracias a una caché de etiquetas.
 - Aviso cuando hay una versión nueva (se puede apagar).

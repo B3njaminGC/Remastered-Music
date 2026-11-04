@@ -56,6 +56,7 @@ Future<void> main() async {
   // Retoma la última canción y cola (en pausa).
   unawaited(AudioService().restoreLastSession());
   PlayStats.instance.attach(AudioService());
+  AudioService().startFade();
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seen_onboarding') ?? false;

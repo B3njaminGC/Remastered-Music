@@ -124,6 +124,38 @@ class AudioService {
     if (file != null) handler.setItem(_itemFor(file));
   }
 
+  StreamSubscription<Duration>? _fadeSubscription;
+  double _lastVolume = 1.0;
+
+  /// Fundido de entrada y salida de cada canción (según Ajustes). Llamar una
+  /// vez al iniciar.
+  void startFade() {
+    _fadeSubscription?.cancel();
+    _fadeSubscription = _player
+        .createPositionStream(
+          minPeriod: const Duration(milliseconds: 120),
+          maxPeriod: const Duration(milliseconds: 250),
+        )
+        .listen((position) {
+          final seconds = AppSettings.instance.fadeSeconds;
+          var volume = 1.0;
+          if (seconds > 0) {
+            final window = seconds * 1000.0;
+            volume = (position.inMilliseconds / window).clamp(0.0, 1.0);
+            final duration = _player.duration;
+            if (duration != null) {
+              final left = (duration - position).inMilliseconds / window;
+              volume = math.min(volume, left.clamp(0.0, 1.0));
+            }
+          }
+          if ((volume - _lastVolume).abs() > 0.02 ||
+              (volume == 1.0 && _lastVolume != 1.0)) {
+            _lastVolume = volume;
+            unawaited(_player.setVolume(volume));
+          }
+        });
+  }
+
   Future<void> _configureAudioSession() async {
     try {
       final session = await AudioSession.instance;

@@ -32,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _pauseOnHeadphoneDisconnect = _settings.pauseOnHeadphoneDisconnect;
   late bool _lyricsOnline = _settings.lyricsOnline;
   late bool _checkUpdates = _settings.checkUpdates;
+  late int _fadeSeconds = _settings.fadeSeconds;
   late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
   bool _scanning = false;
@@ -290,6 +291,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   subtitle: const Text('Abrir el ecualizador nativo'),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: _openSystemEqualizer,
+                ),
+                ListTile(
+                  leading: Icon(Icons.swap_horiz, color: context.accent),
+                  title: const Text('Fundido entre canciones'),
+                  subtitle: Padding(
+                    padding: const EdgeInsets.only(top: 8),
+                    child: Wrap(
+                      spacing: 8,
+                      children: [
+                        for (final seconds in const [0, 2, 4, 6, 8])
+                          ChoiceChip(
+                            label: Text(seconds == 0 ? 'Apagado' : '$seconds s'),
+                            selected: _fadeSeconds == seconds,
+                            onSelected: (_) {
+                              _settings.setFadeSeconds(seconds);
+                              setState(() => _fadeSeconds = seconds);
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
                 ),
                 SwitchListTile(
                   secondary: Icon(
