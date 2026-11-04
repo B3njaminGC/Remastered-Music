@@ -40,6 +40,9 @@ jobs:
           done
           exit 1
 
+      - name: Instalar ffmpeg (música de prueba)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+
       - name: Copiar APK
         run: cp build/app/outputs/flutter-apk/app-release.apk app.apk
 
@@ -50,26 +53,11 @@ jobs:
           arch: x86_64
           target: google_apis
           disable-animations: true
-          script: |
-            adb install -r app.apk
-            adb shell pm grant com.b3njamingc.play_music_app android.permission.READ_MEDIA_AUDIO || true
-            adb shell pm grant com.b3njamingc.play_music_app android.permission.POST_NOTIFICATIONS || true
-            adb logcat -c
-            adb shell monkey -p com.b3njamingc.play_music_app -c android.intent.category.LAUNCHER 1
-            sleep 25
-            adb logcat -d > logcat.txt
-            adb shell pidof com.b3njamingc.play_music_app > pid.txt || true
-            echo "=== PID ==="; cat pid.txt
-            echo "=== ERRORES ==="
-            grep -E "FATAL EXCEPTION|flutter\\s*:|I flutter|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|E flutter|F DEBUG|Process .* has died|ClassNotFound|UnsatisfiedLink" logcat.txt | head -60 || true
-            adb exec-out screencap -p > screen.png || true
+          script: bash tools/ci/smoke.sh
 
       - name: Subir resultados
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: smoke-result
-          path: |
-            logcat.txt
-            pid.txt
-            screen.png
+          path: smoke-out
