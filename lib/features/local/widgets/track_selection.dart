@@ -7,6 +7,7 @@ import '../../../library/favorites_repository.dart';
 import '../../../library/track_index.dart';
 import '../genre_dialogs.dart';
 import '../playlist_dialogs.dart';
+import '../../../theme/accent.dart';
 
 /// Canciones marcadas en una lista (selección múltiple).
 class TrackSelection extends ChangeNotifier {
@@ -202,7 +203,7 @@ class _SelectionBar extends StatelessWidget {
               ),
               IconButton(
                 tooltip: 'Reproducir solo estas',
-                icon: const Icon(Icons.play_arrow, color: Colors.deepOrange),
+                icon: Icon(Icons.play_arrow, color: context.accent),
                 onPressed: play,
               ),
               IconButton(

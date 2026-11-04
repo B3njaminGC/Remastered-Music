@@ -5,6 +5,7 @@ import 'update_installer.dart';
 
 import '../core/app_settings.dart';
 import 'update_checker.dart';
+import '../theme/accent.dart';
 
 /// Al abrir la app: si está activado y pasaron unas horas desde la última
 /// vez, busca una versión nueva y, si la hay, avisa. Nunca molesta si falla.
@@ -30,9 +31,9 @@ Future<void> showUpdateDialog(BuildContext context, UpdateInfo update) {
   return showDialog<void>(
     context: context,
     builder: (dialogContext) => AlertDialog(
-      title: const Row(
+      title: Row(
         children: [
-          Icon(Icons.system_update, color: Colors.deepOrange),
+          Icon(Icons.system_update, color: context.accent),
           SizedBox(width: 8),
           Expanded(child: Text('Hay una versión nueva')),
         ],
@@ -139,7 +140,7 @@ class _DownloadDialogState extends State<_DownloadDialog> {
               children: [
                 LinearProgressIndicator(
                   value: _progress,
-                  color: Colors.deepOrange,
+                  color: context.accent,
                 ),
                 const SizedBox(height: 8),
                 Text(

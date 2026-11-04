@@ -22,7 +22,8 @@ import 'screens/now_playing_screen.dart';
 import 'screens/onboarding_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/support_screen.dart';
-import 'theme/app_theme.dart';
+import 'theme/accent.dart';
+import 'theme/theme_controller.dart';
 import 'update/update_prompt.dart';
 
 Future<void> main() async {
@@ -72,17 +73,21 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
   final GlobalKey<ScaffoldMessengerState> _messengerKey =
       GlobalKey<ScaffoldMessengerState>();
   final AudioService _audio = AudioService();
-  late bool _isDarkMode = AppSettings.instance.darkMode;
+  final AppThemeController _theme = AppThemeController.instance;
 
   @override
   void initState() {
     super.initState();
     _audio.playbackErrorNotifier.addListener(_onPlaybackError);
+    _theme.addListener(_onThemeChanged);
   }
+
+  void _onThemeChanged() => setState(() {});
 
   @override
   void dispose() {
     _audio.playbackErrorNotifier.removeListener(_onPlaybackError);
+    _theme.removeListener(_onThemeChanged);
     super.dispose();
   }
 
@@ -95,10 +100,9 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
       ..showSnackBar(SnackBar(content: Text(message)));
   }
 
-  void _toggleTheme() {
-    setState(() => _isDarkMode = !_isDarkMode);
-    AppSettings.instance.setDarkMode(_isDarkMode);
-  }
+  /// Interruptor rápido del menú: alterna entre claro y oscuro.
+  void _toggleTheme(bool currentlyDark) =>
+      _theme.setMode(currentlyDark ? 'light' : 'dark');
 
   @override
   Widget build(BuildContext context) {
@@ -106,35 +110,12 @@ class _LocalMusicAppState extends State<LocalMusicApp> {
       title: 'Resonar',
       debugShowCheckedModeBanner: false,
       scaffoldMessengerKey: _messengerKey,
-      themeMode: _isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      theme: ThemeData(
-        brightness: Brightness.light,
-        primarySwatch: Colors.deepOrange,
-        primaryColor: Colors.deepOrange,
-        scaffoldBackgroundColor: const Color(0xFFF9F9F9),
-        cardColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.deepOrange,
-          foregroundColor: Colors.white,
-          elevation: 2,
-        ),
-      ),
-      darkTheme: ThemeData(
-        brightness: Brightness.dark,
-        primarySwatch: Colors.deepOrange,
-        primaryColor: Colors.deepOrange,
-        scaffoldBackgroundColor: const Color(0xFF121212),
-        cardColor: const Color(0xFF1F1F1F),
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1F1F1F),
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-      ),
+      themeMode: _theme.themeMode,
+      theme: _theme.light(),
+      darkTheme: _theme.dark(),
       home: MainContainer(
         seenOnboarding: widget.seenOnboarding,
         onToggleTheme: _toggleTheme,
-        isDarkMode: _isDarkMode,
       ),
     );
   }
@@ -145,12 +126,10 @@ class MainContainer extends StatefulWidget {
     super.key,
     required this.seenOnboarding,
     required this.onToggleTheme,
-    required this.isDarkMode,
   });
 
   final bool seenOnboarding;
-  final VoidCallback onToggleTheme;
-  final bool isDarkMode;
+  final void Function(bool currentlyDark) onToggleTheme;
 
   @override
   State<MainContainer> createState() => _MainContainerState();
@@ -244,14 +223,14 @@ class _MainContainerState extends State<MainContainer> {
     showDialog<void>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Row(
+        title: Row(
           children: [
-            Icon(Icons.music_note, color: Colors.deepOrange),
+            Icon(Icons.music_note, color: context.accent),
             SizedBox(width: 8),
             Expanded(child: Text('Acerca de Resonar')),
           ],
         ),
-        content: const SingleChildScrollView(
+        content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
@@ -261,7 +240,7 @@ class _MainContainerState extends State<MainContainer> {
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
-                  color: Colors.deepOrange,
+                  color: context.accent,
                 ),
               ),
               SizedBox(height: 12),
@@ -282,9 +261,9 @@ class _MainContainerState extends State<MainContainer> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
+            child: Text(
               'Cerrar',
-              style: TextStyle(color: Colors.deepOrange),
+              style: TextStyle(color: context.accent),
             ),
           ),
         ],
@@ -329,8 +308,8 @@ class _MainContainerState extends State<MainContainer> {
         child: ListView(
           padding: EdgeInsets.zero,
           children: [
-            const UserAccountsDrawerHeader(
-              decoration: BoxDecoration(color: Colors.deepOrange),
+            UserAccountsDrawerHeader(
+              decoration: BoxDecoration(color: context.accent),
               accountName: Text(
                 'Resonar',
                 style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
@@ -340,7 +319,7 @@ class _MainContainerState extends State<MainContainer> {
                 backgroundColor: Colors.white,
                 child: Icon(
                   Icons.music_note,
-                  color: Colors.deepOrange,
+                  color: context.accent,
                   size: 36,
                 ),
               ),
@@ -354,7 +333,7 @@ class _MainContainerState extends State<MainContainer> {
               },
             ),
             ListTile(
-              leading: const Icon(Icons.favorite, color: Colors.deepOrange),
+              leading: Icon(Icons.favorite, color: context.accent),
               title: const Text('Colaborá con el proyecto'),
               onTap: () {
                 Navigator.pop(context);
@@ -365,8 +344,10 @@ class _MainContainerState extends State<MainContainer> {
             SwitchListTile(
               secondary: const Icon(Icons.brightness_6),
               title: const Text('Modo Oscuro'),
-              value: widget.isDarkMode,
-              onChanged: (_) => widget.onToggleTheme(),
+              value: Theme.of(context).brightness == Brightness.dark,
+              onChanged: (_) => widget.onToggleTheme(
+                Theme.of(context).brightness == Brightness.dark,
+              ),
             ),
             const Divider(),
             ListTile(
@@ -391,7 +372,7 @@ class _MainContainerState extends State<MainContainer> {
               currentIndex: _currentIndex,
               onTap: (index) => setState(() => _currentIndex = index),
               type: BottomNavigationBarType.fixed,
-              selectedItemColor: Colors.deepOrange,
+              selectedItemColor: context.accent,
               unselectedItemColor: Colors.grey,
               items: const [
                 BottomNavigationBarItem(

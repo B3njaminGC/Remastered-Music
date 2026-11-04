@@ -10,6 +10,7 @@ import '../../library/track_index.dart';
 import 'playlist_dialogs.dart';
 import 'playlist_service.dart';
 import 'playlist_transfer.dart';
+import '../../theme/accent.dart';
 
 class PlaylistLibraryScreen extends StatelessWidget {
   const PlaylistLibraryScreen({super.key});
@@ -41,9 +42,9 @@ class PlaylistLibraryScreen extends StatelessWidget {
                 .firstOrNull;
             return ListTile(
               leading: firstTrack == null
-                  ? const CircleAvatar(
+                  ? CircleAvatar(
                       backgroundColor: Color(0x22FF5722),
-                      child: Icon(Icons.queue_music, color: Colors.deepOrange),
+                      child: Icon(Icons.queue_music, color: context.accent),
                     )
                   : LocalTrackArtwork(
                       file: firstTrack,

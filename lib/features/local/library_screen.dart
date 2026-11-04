@@ -7,6 +7,7 @@ import 'playlist_screen.dart';
 import 'playlist_service.dart';
 import 'playlist_transfer.dart';
 import 'songs_tab.dart';
+import '../../theme/accent.dart';
 
 /// Biblioteca: Canciones · Favoritas · Listas · Artistas · Álbumes · Géneros ·
 /// Orígenes.
@@ -78,7 +79,7 @@ class _LibraryScreenState extends State<LibraryScreen>
                 FloatingActionButton(
                   heroTag: null,
                   onPressed: () => showCreatePlaylistDialog(context),
-                  backgroundColor: Colors.deepOrange,
+                  backgroundColor: context.accent,
                   foregroundColor: Colors.white,
                   tooltip: 'Crear lista',
                   child: const Icon(Icons.add),
@@ -89,7 +90,7 @@ class _LibraryScreenState extends State<LibraryScreen>
           ? FloatingActionButton(
               heroTag: null,
               onPressed: () => showGenreFormDialog(context),
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: context.accent,
               foregroundColor: Colors.white,
               tooltip: 'Crear género',
               child: const Icon(Icons.add),

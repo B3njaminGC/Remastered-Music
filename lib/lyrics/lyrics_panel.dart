@@ -8,6 +8,7 @@ import '../core/audio_service.dart';
 import '../library/track_index.dart';
 import 'lyrics.dart';
 import 'lyrics_service.dart';
+import '../theme/accent.dart';
 
 enum _Status { idle, loading, found, none, failed }
 
@@ -145,14 +146,14 @@ class _LyricsPanelState extends State<LyricsPanel> {
       height: _height,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: Colors.deepOrange.withValues(alpha: isDark ? 0.14 : 0.10),
+        color: context.accent.withValues(alpha: isDark ? 0.14 : 0.10),
         borderRadius: BorderRadius.circular(24),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
+          Padding(
             padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
             child: Text(
               'LETRA',
@@ -160,7 +161,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
                 fontWeight: FontWeight.bold,
                 fontSize: 12,
                 letterSpacing: 1.2,
-                color: Colors.deepOrange,
+                color: context.accent,
               ),
             ),
           ),
@@ -199,9 +200,9 @@ class _LyricsPanelState extends State<LyricsPanel> {
             if (retry)
               TextButton(
                 onPressed: () => _load(force: true),
-                child: const Text(
+                child: Text(
                   'Reintentar',
-                  style: TextStyle(color: Colors.deepOrange),
+                  style: TextStyle(color: context.accent),
                 ),
               ),
           ],

@@ -8,6 +8,7 @@ import '../../library/genre_store.dart';
 import 'genre_screen.dart';
 import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
+import '../../theme/accent.dart';
 
 enum GroupMode { artist, album, genre, source }
 
@@ -103,7 +104,7 @@ class GroupsTab extends StatelessWidget {
                   const SizedBox(height: 6),
                   LinearProgressIndicator(
                     value: index.readDone / index.readTotal,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                 ],
               ),
@@ -135,13 +136,13 @@ class _GenreBadge extends StatelessWidget {
         : String.fromCharCodes(group.name.runes.take(2)).toUpperCase();
     return CircleAvatar(
       radius: 24,
-      backgroundColor: Colors.deepOrange.withValues(alpha: 0.15),
+      backgroundColor: context.accent.withValues(alpha: 0.15),
       child: unknown
-          ? const Icon(Icons.help_outline, color: Colors.deepOrange)
+          ? Icon(Icons.help_outline, color: context.accent)
           : Text(
               label,
-              style: const TextStyle(
-                color: Colors.deepOrange,
+              style: TextStyle(
+                color: context.accent,
                 fontWeight: FontWeight.bold,
               ),
             ),
@@ -171,7 +172,7 @@ class TrackGroupScreen extends StatelessWidget {
                 Expanded(
                   child: FilledButton.icon(
                     style: FilledButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
+                      backgroundColor: context.accent,
                     ),
                     onPressed: () => audio.setPlaylistAndPlay(files, 0),
                     icon: const Icon(Icons.play_arrow),

@@ -5,6 +5,7 @@ import '../../library/favorites_repository.dart';
 import '../../library/track_index.dart';
 import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
+import '../../theme/accent.dart';
 
 /// Pestaña "Favoritas": las canciones marcadas con ♥, la más reciente primero.
 class FavoritesTab extends StatelessWidget {
@@ -52,7 +53,7 @@ class FavoritesTab extends StatelessWidget {
                   ),
                   IconButton(
                     tooltip: 'Reproducir al azar',
-                    icon: const Icon(Icons.shuffle, color: Colors.deepOrange),
+                    icon: Icon(Icons.shuffle, color: context.accent),
                     onPressed: () => audio.playShuffled(files),
                   ),
                 ],

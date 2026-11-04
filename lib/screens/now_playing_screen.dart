@@ -10,6 +10,7 @@ import '../features/local/playlist_service.dart';
 import '../features/local/queue_screen.dart';
 import '../library/favorites_repository.dart';
 import '../lyrics/lyrics_panel.dart';
+import '../theme/accent.dart';
 
 class NowPlayingScreen extends StatefulWidget {
   const NowPlayingScreen({super.key, this.showBack = false});
@@ -121,7 +122,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                 ListTile(
                   title: Text(_speedLabel(speed)),
                   trailing: speed == current
-                      ? const Icon(Icons.check, color: Colors.deepOrange)
+                      ? Icon(Icons.check, color: context.accent)
                       : null,
                   onTap: () {
                     _audio.setSpeed(speed);
@@ -182,7 +183,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                             endsAt == null
                                 ? Icons.bedtime_outlined
                                 : Icons.bedtime,
-                            color: endsAt == null ? null : Colors.deepOrange,
+                            color: endsAt == null ? null : context.accent,
                           ),
                         ),
                       ),
@@ -196,7 +197,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                               fontWeight: FontWeight.bold,
                               color: speed == 1.0
                                   ? foreground
-                                  : Colors.deepOrange,
+                                  : context.accent,
                             ),
                           ),
                         ),
@@ -313,7 +314,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                                           ? Icons.favorite
                                           : Icons.favorite_border,
                                       color: isFavorite
-                                          ? Colors.deepOrange
+                                          ? context.accent
                                           : null,
                                     ),
                                   );
@@ -343,7 +344,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           Slider(
                             value: shownSeconds,
                             max: maxSeconds,
-                            activeColor: Colors.deepOrange,
+                            activeColor: context.accent,
                             onChanged: (value) =>
                                 setState(() => _dragSeconds = value),
                             onChangeEnd: (value) async {
@@ -389,7 +390,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           tooltip: 'Aleatorio',
                           icon: Icon(
                             Icons.shuffle,
-                            color: isShuffle ? Colors.deepOrange : Colors.grey,
+                            color: isShuffle ? context.accent : Colors.grey,
                           ),
                           onPressed: audio.toggleShuffle,
                         ),
@@ -410,7 +411,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           final playing = snapshot.data?.playing ?? false;
                           return CircleAvatar(
                             radius: 32,
-                            backgroundColor: Colors.deepOrange,
+                            backgroundColor: context.accent,
                             child: IconButton(
                               tooltip: playing ? 'Pausar' : 'Reproducir',
                               icon: Icon(
@@ -441,7 +442,7 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                                 ? Icons.repeat_one
                                 : Icons.repeat,
                             color: loopMode != LoopMode.off
-                                ? Colors.deepOrange
+                                ? context.accent
                                 : Colors.grey,
                           ),
                           onPressed: audio.toggleLoop,

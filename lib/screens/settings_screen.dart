@@ -10,9 +10,11 @@ import '../core/audio_service.dart';
 import '../features/local/library_actions.dart';
 import '../library/library_repository.dart';
 import '../library/track_index.dart';
+import '../theme/theme_controller.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
+import '../theme/accent.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -30,6 +32,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _pauseOnHeadphoneDisconnect = _settings.pauseOnHeadphoneDisconnect;
   late bool _lyricsOnline = _settings.lyricsOnline;
   late bool _checkUpdates = _settings.checkUpdates;
+  late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
   bool _scanning = false;
 
@@ -162,10 +165,95 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
-  Widget _sectionTitle(String text, {Color color = Colors.deepOrange}) => Text(
+  Widget _sectionTitle(String text, {Color? color}) => Text(
     text,
-    style: TextStyle(fontWeight: FontWeight.bold, color: color, fontSize: 13),
+    style: TextStyle(
+      fontWeight: FontWeight.bold,
+      color: color ?? context.accent,
+      fontSize: 13,
+    ),
   );
+
+  Widget _appearanceCard() {
+    final theme = AppThemeController.instance;
+    return ListenableBuilder(
+      listenable: theme,
+      builder: (context, _) => Card(
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Tema', style: TextStyle(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final entry in AppThemeController.modeLabels.entries)
+                    ChoiceChip(
+                      label: Text(entry.value),
+                      selected: theme.mode == entry.key,
+                      onSelected: (_) => theme.setMode(entry.key),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Color de acento',
+                style: TextStyle(fontWeight: FontWeight.w600),
+              ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 12,
+                runSpacing: 12,
+                children: [
+                  for (var i = 0; i < AppThemeController.accents.length; i++)
+                    Semantics(
+                      label: AppThemeController.accents[i].name,
+                      button: true,
+                      child: GestureDetector(
+                        onTap: () => theme.setAccent(i),
+                        child: Container(
+                          width: 40,
+                          height: 40,
+                          decoration: BoxDecoration(
+                            color: AppThemeController.accents[i].color,
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: theme.accentIndex == i
+                                  ? Theme.of(context).colorScheme.onSurface
+                                  : Colors.transparent,
+                              width: 3,
+                            ),
+                          ),
+                          child: theme.accentIndex == i
+                              ? const Icon(Icons.check, color: Colors.white)
+                              : null,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              SwitchListTile(
+                contentPadding: EdgeInsets.zero,
+                title: const Text('Colores de la carátula'),
+                subtitle: const Text(
+                  'En "Sonando", el fondo y los botones toman el color de la '
+                  'canción que suena.',
+                ),
+                value: _dynamicColors,
+                onChanged: (value) {
+                  _settings.setDynamicColors(value);
+                  setState(() => _dynamicColors = value);
+                },
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -175,9 +263,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           Card(
-            color: Colors.deepOrange.withValues(alpha: 0.12),
+            color: context.accent.withValues(alpha: 0.12),
             child: ListTile(
-              leading: const Icon(Icons.favorite, color: Colors.deepOrange),
+              leading: Icon(Icons.favorite, color: context.accent),
               title: const Text('Apoyar el proyecto'),
               subtitle: const Text('Colaborá con un aporte por Mercado Pago.'),
               trailing: const Icon(Icons.chevron_right),
@@ -187,29 +275,33 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const SizedBox(height: 16),
+          _sectionTitle('APARIENCIA'),
+          const SizedBox(height: 8),
+          _appearanceCard(),
+          const SizedBox(height: 16),
           _sectionTitle('AJUSTES DE SONIDO'),
           const SizedBox(height: 8),
           Card(
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(Icons.equalizer, color: Colors.deepOrange),
+                  leading: Icon(Icons.equalizer, color: context.accent),
                   title: const Text('Abrir Ecualizador'),
                   subtitle: const Text('Abrir el ecualizador nativo'),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: _openSystemEqualizer,
                 ),
                 SwitchListTile(
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.headphones,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                   title: const Text('Pausar al desconectar auriculares'),
                   subtitle: const Text(
                     'Pausa la reproducción al retirar los auriculares.',
                   ),
                   value: _pauseOnHeadphoneDisconnect,
-                  activeThumbColor: Colors.deepOrange,
+                  activeThumbColor: context.accent,
                   onChanged: _setPauseOnHeadphoneDisconnect,
                 ),
                 FutureBuilder<PermissionStatus>(
@@ -217,9 +309,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   builder: (context, snapshot) {
                     final granted = snapshot.data?.isGranted ?? false;
                     return ListTile(
-                      leading: const Icon(
+                      leading: Icon(
                         Icons.notifications_active_outlined,
-                        color: Colors.deepOrange,
+                        color: context.accent,
                       ),
                       title: const Text('Notificación del reproductor'),
                       subtitle: Text(
@@ -246,9 +338,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 SwitchListTile(
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.lyrics_outlined,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                   title: const Text('Buscar letras en internet'),
                   subtitle: const Text(
@@ -257,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'dispositivo. Desactivado: 100% offline.',
                   ),
                   value: _lyricsOnline,
-                  activeThumbColor: Colors.deepOrange,
+                  activeThumbColor: context.accent,
                   onChanged: _setLyricsOnline,
                 ),
               ],
@@ -270,9 +362,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 SwitchListTile(
-                  secondary: const Icon(
+                  secondary: Icon(
                     Icons.system_update,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                   title: const Text('Avisar si hay una versión nueva'),
                   subtitle: const Text(
@@ -280,11 +372,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     'tuyos). Desactivado: 100% offline.',
                   ),
                   value: _checkUpdates,
-                  activeThumbColor: Colors.deepOrange,
+                  activeThumbColor: context.accent,
                   onChanged: _setCheckUpdates,
                 ),
                 ListTile(
-                  leading: const Icon(Icons.refresh, color: Colors.deepOrange),
+                  leading: Icon(Icons.refresh, color: context.accent),
                   title: const Text('Buscar actualizaciones ahora'),
                   enabled: !_checkingUpdate,
                   onTap: _checkUpdateNow,
@@ -300,9 +392,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Column(
               children: [
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.search,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                   title: const Text('Buscar música en el dispositivo'),
                   subtitle: const Text(
@@ -316,7 +408,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.refresh, color: Colors.deepOrange),
+                  leading: Icon(Icons.refresh, color: context.accent),
                   title: const Text('Reescanear biblioteca'),
                   subtitle: const Text(
                     'Detecta canciones nuevas o borradas en tus carpetas.',
@@ -325,9 +417,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   onTap: () => _runScan(_library.rescan),
                 ),
                 ListTile(
-                  leading: const Icon(
+                  leading: Icon(
                     Icons.sell_outlined,
-                    color: Colors.deepOrange,
+                    color: context.accent,
                   ),
                   title: const Text('Releer etiquetas de las canciones'),
                   subtitle: const Text(
@@ -357,7 +449,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ..._includedFolders.map(
             (folder) => Card(
               child: ListTile(
-                leading: const Icon(Icons.folder, color: Colors.deepOrange),
+                leading: Icon(Icons.folder, color: context.accent),
                 title: Text(
                   folder,
                   maxLines: 1,
@@ -377,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           ElevatedButton.icon(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.deepOrange,
+              backgroundColor: context.accent,
               foregroundColor: Colors.white,
             ),
             onPressed: _scanning ? null : () => _addFolder(excluded: false),

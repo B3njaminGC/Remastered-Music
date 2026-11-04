@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../core/donation_config.dart';
+import '../theme/accent.dart';
 
 /// "Colaborá con el proyecto": alias y link de Mercado Pago.
 class SupportScreen extends StatelessWidget {
@@ -49,7 +50,7 @@ class SupportScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.all(20),
         children: [
-          const Icon(Icons.favorite, size: 64, color: Colors.deepOrange),
+          Icon(Icons.favorite, size: 64, color: context.accent),
           const SizedBox(height: 16),
           Text(
             '¡Gracias por usar Resonar!',
@@ -82,11 +83,11 @@ class SupportScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
+                    Text(
                       'ALIAS DE MERCADO PAGO',
                       style: TextStyle(
                         fontWeight: FontWeight.bold,
-                        color: Colors.deepOrange,
+                        color: context.accent,
                         fontSize: 12,
                       ),
                     ),
@@ -122,7 +123,7 @@ class SupportScreen extends StatelessWidget {
             const SizedBox(height: 12),
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: context.accent,
                 minimumSize: const Size.fromHeight(48),
               ),
               onPressed: () => _openLink(context),

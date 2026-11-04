@@ -10,6 +10,7 @@ import '../../library/track_index.dart';
 import 'genre_dialogs.dart';
 import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
+import '../../theme/accent.dart';
 
 enum _GenreMenu { edit, delete }
 
@@ -133,7 +134,7 @@ class _GenreScreenState extends State<GenreScreen> {
                     Expanded(
                       child: FilledButton.icon(
                         style: FilledButton.styleFrom(
-                          backgroundColor: Colors.deepOrange,
+                          backgroundColor: context.accent,
                         ),
                         onPressed: files.isEmpty
                             ? null
@@ -306,7 +307,7 @@ class _GenrePickerScreenState extends State<GenrePickerScreen> {
                       final already = _alreadyIn(track);
                       return CheckboxListTile(
                         value: already || _selected.contains(track.path),
-                        activeColor: Colors.deepOrange,
+                        activeColor: context.accent,
                         controlAffinity: ListTileControlAffinity.leading,
                         onChanged: already
                             ? null

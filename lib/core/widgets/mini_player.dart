@@ -6,6 +6,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../screens/now_playing_screen.dart';
 import '../audio_service.dart';
 import 'track_artwork.dart';
+import '../../theme/accent.dart';
 
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({super.key});
@@ -101,7 +102,7 @@ class MiniPlayer extends StatelessWidget {
                       onPressed: audioService.playPause,
                       icon: Icon(
                         isPlaying ? Icons.pause : Icons.play_arrow,
-                        color: Colors.deepOrange,
+                        color: context.accent,
                         size: 30,
                       ),
                     ),

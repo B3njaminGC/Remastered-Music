@@ -9,6 +9,7 @@ import '../../../library/track_index.dart';
 import '../../../library/track_source.dart';
 import '../genre_dialogs.dart';
 import '../playlist_dialogs.dart';
+import '../../../theme/accent.dart';
 
 /// Fila de canción: carátula, título, artista y menú de acciones.
 class TrackTile extends StatelessWidget {
@@ -35,7 +36,7 @@ class TrackTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return ListTile(
       selected: selected,
-      selectedTileColor: Colors.deepOrange.withValues(alpha: 0.14),
+      selectedTileColor: context.accent.withValues(alpha: 0.14),
       leading: Stack(
         alignment: Alignment.center,
         children: [
@@ -44,7 +45,7 @@ class TrackTile extends StatelessWidget {
             Positioned.fill(
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  color: selected ? Colors.deepOrange : Colors.black26,
+                  color: selected ? context.accent : Colors.black26,
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Icon(

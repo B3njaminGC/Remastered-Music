@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../theme/accent.dart';
 
 class OnboardingScreen extends StatelessWidget {
   final VoidCallback onFinished;
@@ -13,7 +14,7 @@ class OnboardingScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.music_note, size: 90, color: Colors.deepOrange),
+              Icon(Icons.music_note, size: 90, color: context.accent),
               const SizedBox(height: 24),
               const Text(
                 "Bienvenido a Resonar",
@@ -29,7 +30,7 @@ class OnboardingScreen extends StatelessWidget {
               const SizedBox(height: 48),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.deepOrange,
+                  backgroundColor: context.accent,
                   minimumSize: const Size.fromHeight(50),
                 ),
                 onPressed: onFinished,

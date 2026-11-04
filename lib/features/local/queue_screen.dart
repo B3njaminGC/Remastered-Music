@@ -6,6 +6,7 @@ import '../../core/audio_service.dart';
 import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
 import 'playlist_transfer.dart';
+import '../../theme/accent.dart';
 
 class QueueScreen extends StatelessWidget {
   const QueueScreen({super.key, this.showAppBar = false});
@@ -87,7 +88,7 @@ class _Queue extends StatelessWidget {
                         child: Container(
                           padding: const EdgeInsets.all(2),
                           decoration: BoxDecoration(
-                            color: Colors.deepOrange,
+                            color: context.accent,
                             borderRadius: BorderRadius.circular(20),
                           ),
                           child: const Icon(
@@ -107,7 +108,7 @@ class _Queue extends StatelessWidget {
                     fontWeight: isPlayingNow
                         ? FontWeight.bold
                         : FontWeight.normal,
-                    color: isPlayingNow ? Colors.deepOrange : null,
+                    color: isPlayingNow ? context.accent : null,
                   ),
                 ),
                 subtitle: Text(

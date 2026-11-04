@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/audio_service.dart';
 import '../../library/track_index.dart';
 import 'widgets/track_tile.dart';
+import '../../theme/accent.dart';
 
 /// Búsqueda dentro de la biblioteca (título, artista, álbum o nombre de archivo).
 class SearchScreen extends StatefulWidget {
@@ -50,7 +51,7 @@ class _SearchScreenState extends State<SearchScreen> {
               textInputAction: TextInputAction.search,
               decoration: InputDecoration(
                 hintText: 'Buscar por título, artista o álbum…',
-                prefixIcon: const Icon(Icons.search, color: Colors.deepOrange),
+                prefixIcon: Icon(Icons.search, color: context.accent),
                 suffixIcon: ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _controller,
                   builder: (context, value, _) => value.text.isEmpty

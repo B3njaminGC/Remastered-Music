@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 
 import 'playlist_service.dart';
+import '../../theme/accent.dart';
 
 /// Diálogos de listas de reproducción offline.
 ///
@@ -298,9 +299,9 @@ class _AddToPlaylistSheetState extends State<_AddToPlaylistSheet> {
                         for (final name in names)
                           ListTile(
                             contentPadding: EdgeInsets.zero,
-                            leading: const Icon(
+                            leading: Icon(
                               Icons.queue_music,
-                              color: Colors.deepOrange,
+                              color: context.accent,
                             ),
                             title: Text(name),
                             enabled: !_busy,
@@ -319,7 +320,7 @@ class _AddToPlaylistSheetState extends State<_AddToPlaylistSheet> {
                     errorText: _error,
                     suffixIcon: IconButton(
                       tooltip: 'Crear lista y añadir canción',
-                      icon: const Icon(Icons.add_circle, color: Colors.deepOrange),
+                      icon: Icon(Icons.add_circle, color: context.accent),
                       onPressed: _busy ? null : _createAndAdd,
                     ),
                   ),

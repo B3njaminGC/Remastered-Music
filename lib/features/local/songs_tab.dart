@@ -8,6 +8,7 @@ import '../../screens/settings_screen.dart';
 import 'library_actions.dart';
 import 'widgets/track_selection.dart';
 import 'widgets/track_tile.dart';
+import '../../theme/accent.dart';
 
 /// Pestaña "Canciones": toda la biblioteca con orden y "aleatorio".
 class SongsTab extends StatefulWidget {
@@ -34,8 +35,8 @@ class _SongsTabState extends State<SongsTab> {
       builder: (context, _) {
         if (_index.tracks.isEmpty) {
           return _index.loading
-              ? const Center(
-                  child: CircularProgressIndicator(color: Colors.deepOrange),
+              ? Center(
+                  child: CircularProgressIndicator(color: context.accent),
                 )
               : const _EmptyLibrary();
         }
@@ -55,7 +56,7 @@ class _SongsTabState extends State<SongsTab> {
                   ),
                   IconButton(
                     tooltip: 'Reproducir al azar',
-                    icon: const Icon(Icons.shuffle, color: Colors.deepOrange),
+                    icon: Icon(Icons.shuffle, color: context.accent),
                     onPressed: () => _audio.playShuffled(files),
                   ),
                   PopupMenuButton<SongSort>(
@@ -128,7 +129,7 @@ class _EmptyLibrary extends StatelessWidget {
             const SizedBox(height: 20),
             FilledButton.icon(
               style: FilledButton.styleFrom(
-                backgroundColor: Colors.deepOrange,
+                backgroundColor: context.accent,
               ),
               onPressed: () => scanDeviceMusicWithFeedback(context),
               icon: const Icon(Icons.search),

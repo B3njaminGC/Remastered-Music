@@ -36,6 +36,23 @@ class AppSettings {
 
   Future<void> setDarkMode(bool value) => _box.put('dark_mode', value);
 
+  /// 'system' | 'light' | 'dark' | 'amoled'. Si nunca se eligió, respeta el
+  /// antiguo interruptor de modo oscuro.
+  String get themeMode =>
+      (_box.get('theme_mode') as String?) ?? (darkMode ? 'dark' : 'light');
+
+  Future<void> setThemeMode(String value) => _box.put('theme_mode', value);
+
+  int get accentIndex => (_box.get('accent_index') as num?)?.toInt() ?? 0;
+
+  Future<void> setAccentIndex(int value) => _box.put('accent_index', value);
+
+  /// En "Sonando", usar el color de la carátula como acento y de fondo.
+  bool get dynamicColors =>
+      _box.get('dynamic_colors', defaultValue: true) == true;
+
+  Future<void> setDynamicColors(bool value) => _box.put('dynamic_colors', value);
+
   /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
   bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
 
