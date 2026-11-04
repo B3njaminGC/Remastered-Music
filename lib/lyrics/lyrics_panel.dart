@@ -15,9 +15,17 @@ enum _Status { idle, loading, found, none, failed }
 /// Letra de la canción que suena, debajo del reproductor (estilo Spotify): si
 /// está sincronizada resalta y sigue la línea actual; si no, texto corrido.
 class LyricsPanel extends StatefulWidget {
-  const LyricsPanel({super.key, required this.foreground});
+  const LyricsPanel({
+    super.key,
+    required this.foreground,
+    this.fullscreen = false,
+  });
 
   final Color foreground;
+
+  /// Versión a pantalla completa: sin tarjeta, ocupa todo el espacio y la
+  /// letra va más grande.
+  final bool fullscreen;
 
   @override
   State<LyricsPanel> createState() => _LyricsPanelState();
@@ -142,31 +150,57 @@ class _LyricsPanelState extends State<LyricsPanel> {
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
+    final full = widget.fullscreen;
     return Container(
-      height: _height,
+      height: full ? null : _height,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: context.accent.withValues(alpha: isDark ? 0.14 : 0.10),
-        borderRadius: BorderRadius.circular(24),
+        color: full
+            ? Colors.transparent
+            : context.accent.withValues(alpha: isDark ? 0.14 : 0.10),
+        borderRadius: BorderRadius.circular(full ? 0 : 24),
       ),
       clipBehavior: Clip.antiAlias,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
-            child: Text(
-              'LETRA',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                fontSize: 12,
-                letterSpacing: 1.2,
-                color: context.accent,
+          if (!full)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+              child: Row(
+                children: [
+                  Text(
+                    'LETRA',
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12,
+                      letterSpacing: 1.2,
+                      color: context.accent,
+                    ),
+                  ),
+                  const Spacer(),
+                  IconButton(
+                    tooltip: 'Letra a pantalla completa',
+                    icon: const Icon(Icons.open_in_full_rounded, size: 20),
+                    onPressed: _status == _Status.found ? _openFullscreen : null,
+                  ),
+                ],
               ),
             ),
-          ),
           Expanded(child: _body()),
         ],
+      ),
+    );
+  }
+
+  void _openFullscreen() {
+    final theme = Theme.of(context);
+    Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => Theme(
+          data: theme,
+          child: LyricsFullScreen(foreground: widget.foreground),
+        ),
       ),
     );
   }
@@ -261,7 +295,12 @@ class _LyricsPanelState extends State<LyricsPanel> {
           },
           child: SingleChildScrollView(
             controller: _scroll,
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            padding: EdgeInsets.fromLTRB(
+              widget.fullscreen ? 28 : 20,
+              widget.fullscreen ? 24 : 8,
+              widget.fullscreen ? 28 : 20,
+              0,
+            ),
             child: lyrics.synced ? _syncedLines(lyrics) : _plainText(lyrics),
           ),
         );
@@ -272,7 +311,11 @@ class _LyricsPanelState extends State<LyricsPanel> {
     padding: const EdgeInsets.only(bottom: 32),
     child: Text(
       lyrics.text,
-      style: TextStyle(fontSize: 17, height: 1.6, color: widget.foreground),
+      style: TextStyle(
+        fontSize: widget.fullscreen ? 22 : 17,
+        height: 1.6,
+        color: widget.foreground,
+      ),
     ),
   );
 
@@ -290,7 +333,7 @@ class _LyricsPanelState extends State<LyricsPanel> {
               child: AnimatedDefaultTextStyle(
                 duration: const Duration(milliseconds: 250),
                 style: TextStyle(
-                  fontSize: i == _active ? 21 : 18,
+                  fontSize: (i == _active ? 21 : 18) * (widget.fullscreen ? 1.4 : 1),
                   height: 1.3,
                   fontWeight: i == _active ? FontWeight.bold : FontWeight.w600,
                   color: i == _active
@@ -305,6 +348,68 @@ class _LyricsPanelState extends State<LyricsPanel> {
           ),
         const SizedBox(height: 160),
       ],
+    );
+  }
+}
+
+/// Letra sincronizada a pantalla completa, con el fondo teñido del acento.
+class LyricsFullScreen extends StatelessWidget {
+  const LyricsFullScreen({super.key, required this.foreground});
+
+  final Color foreground;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final audio = AudioService();
+    return Scaffold(
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [
+              theme.colorScheme.primary.withValues(alpha: 0.6),
+              theme.scaffoldBackgroundColor,
+            ],
+            stops: const [0, 0.8],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(
+            children: [
+              Row(
+                children: [
+                  IconButton(
+                    tooltip: 'Cerrar',
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded, size: 34),
+                    onPressed: () => Navigator.of(context).maybePop(),
+                  ),
+                  Expanded(
+                    child: ValueListenableBuilder<String?>(
+                      valueListenable: audio.titleNotifier,
+                      builder: (context, title, _) => Text(
+                        title ?? '',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: foreground,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 48),
+                ],
+              ),
+              Expanded(
+                child: LyricsPanel(foreground: foreground, fullscreen: true),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

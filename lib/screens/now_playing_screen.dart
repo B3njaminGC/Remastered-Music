@@ -2,14 +2,17 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
+import '../core/app_settings.dart';
 import '../core/audio_service.dart';
 import '../core/widgets/track_artwork.dart';
 import '../features/local/playlist_service.dart';
 import '../features/local/queue_screen.dart';
 import '../library/favorites_repository.dart';
 import '../lyrics/lyrics_panel.dart';
+import '../theme/art_palette.dart';
 import '../theme/accent.dart';
 
 class NowPlayingScreen extends StatefulWidget {
@@ -32,6 +35,36 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
   /// Posición (en segundos) mientras el usuario arrastra el slider; evita
   /// hacer un seek por cada pixel arrastrado.
   double? _dragSeconds;
+
+  /// Color dominante de la carátula actual (para teñir la pantalla).
+  Color? _tint;
+  Uint8List? _lastBytes;
+
+  @override
+  void initState() {
+    super.initState();
+    _audio.artworkBytesNotifier.addListener(_onArtwork);
+    _onArtwork();
+  }
+
+  @override
+  void dispose() {
+    _audio.artworkBytesNotifier.removeListener(_onArtwork);
+    super.dispose();
+  }
+
+  Future<void> _onArtwork() async {
+    final bytes = _audio.artworkBytesNotifier.value;
+    if (identical(bytes, _lastBytes)) return;
+    _lastBytes = bytes;
+    if (bytes == null) {
+      if (mounted) setState(() => _tint = null);
+      return;
+    }
+    final color = await ArtPalette.dominant(bytes);
+    if (!mounted || !identical(bytes, _lastBytes)) return;
+    setState(() => _tint = color);
+  }
 
   String _formatDuration(Duration? duration) {
     if (duration == null) return '0:00';
@@ -138,12 +171,50 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final base = Theme.of(context);
+    final tint = AppSettings.instance.dynamicColors
+        ? ArtPalette.adapt(_tint, base.brightness)
+        : null;
+    return TweenAnimationBuilder<Color?>(
+      tween: ColorTween(end: tint ?? base.colorScheme.primary),
+      duration: const Duration(milliseconds: 600),
+      builder: (context, color, child) => Theme(
+        data: base.copyWith(
+          colorScheme: base.colorScheme.copyWith(primary: color),
+        ),
+        child: child!,
+      ),
+      child: Builder(builder: _buildBody),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
     final audio = _audio;
     final isDark = Theme.of(context).brightness == Brightness.dark;
     final foreground = isDark ? Colors.white : Colors.black87;
 
+    final scheme = Theme.of(context);
     return Scaffold(
-      body: SafeArea(
+      body: Stack(
+        children: [
+          Positioned.fill(
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topCenter,
+                  end: Alignment.bottomCenter,
+                  colors: [
+                    scheme.colorScheme.primary.withValues(
+                      alpha: isDark ? 0.5 : 0.3,
+                    ),
+                    scheme.scaffoldBackgroundColor,
+                  ],
+                  stops: const [0, 0.7],
+                ),
+              ),
+            ),
+          ),
+          SafeArea(
         child: LayoutBuilder(
           builder: (context, constraints) {
             final artSize = math.min(constraints.maxWidth - 48, 380.0);
@@ -216,26 +287,60 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                     ],
                   ),
                   const SizedBox(height: 8),
-                  ValueListenableBuilder<Uint8List?>(
-                    valueListenable: audio.artworkBytesNotifier,
-                    builder: (context, artworkBytes, _) => Container(
-                      width: artSize,
-                      height: artSize,
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(24),
-                        boxShadow: [
-                          BoxShadow(
-                            color: isDark ? Colors.black54 : Colors.black12,
-                            blurRadius: 24,
-                            offset: const Offset(0, 10),
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onHorizontalDragEnd: (details) {
+                      final v = details.primaryVelocity ?? 0;
+                      if (v < -300) {
+                        HapticFeedback.selectionClick();
+                        audio.playNext();
+                      } else if (v > 300) {
+                        HapticFeedback.selectionClick();
+                        audio.playPrevious();
+                      }
+                    },
+                    child: StreamBuilder<PlayerState>(
+                      stream: audio.player.playerStateStream,
+                      initialData: audio.player.playerState,
+                      builder: (context, stateSnapshot) {
+                        final playing = stateSnapshot.data?.playing ?? false;
+                        return AnimatedScale(
+                          scale: playing ? 1.0 : 0.9,
+                          duration: const Duration(milliseconds: 350),
+                          curve: Curves.easeOutBack,
+                          child: ValueListenableBuilder<Uint8List?>(
+                            valueListenable: audio.artworkBytesNotifier,
+                            builder: (context, artworkBytes, _) =>
+                                AnimatedSwitcher(
+                                  duration: const Duration(milliseconds: 350),
+                                  child: Container(
+                                    key: ValueKey<int>(
+                                      identityHashCode(artworkBytes),
+                                    ),
+                                    width: artSize,
+                                    height: artSize,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(24),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: context.accent.withValues(
+                                            alpha: isDark ? 0.45 : 0.35,
+                                          ),
+                                          blurRadius: 36,
+                                          offset: const Offset(0, 14),
+                                        ),
+                                      ],
+                                    ),
+                                    child: TrackArtwork(
+                                      size: artSize,
+                                      borderRadius: 24,
+                                      artworkBytes: artworkBytes,
+                                    ),
+                                  ),
+                                ),
                           ),
-                        ],
-                      ),
-                      child: TrackArtwork(
-                        size: artSize,
-                        borderRadius: 24,
-                        artworkBytes: artworkBytes,
-                      ),
+                        );
+                      },
                     ),
                   ),
                   const SizedBox(height: 28),
@@ -307,8 +412,11 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                                         : 'Añadir a favoritas',
                                     onPressed: path == null
                                         ? null
-                                        : () => FavoritesRepository.instance
-                                              .toggle(path),
+                                        : () {
+                                            HapticFeedback.mediumImpact();
+                                            FavoritesRepository.instance
+                                                .toggle(path);
+                                          },
                                     icon: Icon(
                                       isFavorite
                                           ? Icons.favorite
@@ -402,7 +510,10 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           size: 36,
                           color: foreground,
                         ),
-                        onPressed: audio.playPrevious,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          audio.playPrevious();
+                        },
                       ),
                       StreamBuilder<PlayerState>(
                         stream: audio.player.playerStateStream,
@@ -419,7 +530,10 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                                 size: 36,
                                 color: Colors.white,
                               ),
-                              onPressed: audio.playPause,
+                              onPressed: () {
+                                HapticFeedback.lightImpact();
+                                audio.playPause();
+                              },
                             ),
                           );
                         },
@@ -431,7 +545,10 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
                           size: 36,
                           color: foreground,
                         ),
-                        onPressed: audio.playNext,
+                        onPressed: () {
+                          HapticFeedback.selectionClick();
+                          audio.playNext();
+                        },
                       ),
                       ValueListenableBuilder<LoopMode>(
                         valueListenable: audio.loopNotifier,
@@ -457,6 +574,8 @@ class _NowPlayingScreenState extends State<NowPlayingScreen> {
             );
           },
         ),
+          ),
+        ],
       ),
     );
   }
