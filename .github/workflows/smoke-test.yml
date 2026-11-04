@@ -1,13 +1,9 @@
 name: Smoke test
 
-# Instala un APK publicado en un emulador y revisa que la app abra sin cerrarse.
-# Se lanza a mano: Actions → Smoke test → Run workflow (tag: build-N o latest).
+# Compila el código actual para x86_64, lo instala en un emulador y revisa que
+# la app abra sin cerrarse. Se lanza a mano: Actions → Smoke test → Run workflow.
 on:
   workflow_dispatch:
-    inputs:
-      tag:
-        description: 'Release a probar (build-N o latest)'
-        default: latest
 
 jobs:
   smoke:
@@ -20,17 +16,32 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
-      - name: Bajar el APK
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: ${{ inputs.tag }}
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - run: python3 tools/ci/prepare_android.py
+
+      - run: flutter pub get
+
+      - name: Compilar para x86_64 (el emulador no corre arm64)
         run: |
-          if [ "$TAG" = "latest" ]; then
-            gh release download --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --output app.apk
-          else
-            gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*.apk' --output app.apk
-          fi
-          ls -l app.apk
+          for attempt in 1 2 3; do
+            flutter build apk --release --target-platform android-x64 && exit 0
+            sleep 10
+          done
+          exit 1
+
+      - name: Copiar APK
+        run: cp build/app/outputs/flutter-apk/app-release.apk app.apk
 
       - name: Probar en emulador
         uses: reactivecircus/android-emulator-runner@v2
@@ -50,7 +61,7 @@ jobs:
             adb shell pidof com.b3njamingc.play_music_app > pid.txt || true
             echo "=== PID ==="; cat pid.txt
             echo "=== ERRORES ==="
-            grep -E "FATAL EXCEPTION|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|E flutter|F DEBUG|Process .* has died|ClassNotFound|UnsatisfiedLink" logcat.txt | head -60 || true
+            grep -E "FATAL EXCEPTION|flutter\\s*:|I flutter|AndroidRuntime|Fatal signal|SIGSEGV|SIGABRT|E flutter|F DEBUG|Process .* has died|ClassNotFound|UnsatisfiedLink" logcat.txt | head -60 || true
             adb exec-out screencap -p > screen.png || true
 
       - name: Subir resultados
