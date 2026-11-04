@@ -9,6 +9,7 @@ import '../../core/widgets/track_artwork.dart';
 import '../../library/track_index.dart';
 import 'playlist_dialogs.dart';
 import 'playlist_service.dart';
+import 'smart_lists.dart';
 import 'playlist_transfer.dart';
 import '../../theme/accent.dart';
 
@@ -21,18 +22,25 @@ class PlaylistLibraryScreen extends StatelessWidget {
       valueListenable: Hive.box<List>(PlaylistService.boxName).listenable(),
       builder: (context, box, _) {
         final names = box.keys.whereType<String>().toList()..sort();
-        if (names.isEmpty) {
-          return const Center(
-            child: Text(
-              'Crea una lista para organizar tu música.',
-              style: TextStyle(color: Colors.grey),
-            ),
-          );
-        }
-
         return ListView.builder(
-          itemCount: names.length,
-          itemBuilder: (context, index) {
+          itemCount: names.length + 1,
+          itemBuilder: (context, position) {
+            if (position == 0) {
+              return Column(
+                children: [
+                  const SmartListsSection(),
+                  if (names.isEmpty)
+                    const Padding(
+                      padding: EdgeInsets.all(24),
+                      child: Text(
+                        'Creá una lista para organizar tu música.',
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                ],
+              );
+            }
+            final index = position - 1;
             final name = names[index];
             final storedPaths = box.get(name);
             final paths = storedPaths?.cast<String>().toList() ?? <String>[];

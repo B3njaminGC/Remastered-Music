@@ -16,6 +16,7 @@ import 'features/local/search_screen.dart';
 import 'library/favorites_repository.dart';
 import 'library/genre_store.dart';
 import 'library/library_repository.dart';
+import 'library/play_stats.dart';
 import 'library/track_index.dart';
 import 'lyrics/lyrics_service.dart';
 import 'screens/now_playing_screen.dart';
@@ -33,6 +34,7 @@ Future<void> main() async {
   await LibraryRepository.instance.init();
   await FavoritesRepository.instance.init();
   await GenreStore.instance.init();
+  await PlayStats.instance.init();
   try {
     await PlaylistService.initialize();
   } catch (error, stackTrace) {
@@ -53,6 +55,7 @@ Future<void> main() async {
   TrackIndex.instance.bind(LibraryRepository.instance.paths);
   // Retoma la última canción y cola (en pausa).
   unawaited(AudioService().restoreLastSession());
+  PlayStats.instance.attach(AudioService());
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
