@@ -214,7 +214,7 @@ KEEP_XML = (
     '@drawable/ic_heart,@drawable/ic_heart_outline,@mipmap/ic_launcher,'
     '@layout/widget_player,@layout/widget_shortcuts,@drawable/widget_bg,'
     '@drawable/widget_button_bg,@drawable/widget_button_bg_dark,'
-    '@drawable/ic_widget_*,@xml/widget_*" />\n'
+    '@drawable/ic_widget_*,@xml/widget_*,@string/widget_*" />\n'
 )
 
 
@@ -873,7 +873,7 @@ SHORTCUT_ITEMS = [
 
 WIDGET_INFO = """<?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
-    android:description="{description}"
+    android:description="@string/{description}"
     android:initialLayout="@layout/{layout}"
     android:minHeight="{height}dp"
     android:minWidth="250dp"
@@ -883,6 +883,13 @@ WIDGET_INFO = """<?xml version="1.0" encoding="utf-8"?>
     android:targetCellWidth="4"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
+"""
+
+WIDGET_STRINGS = """<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="widget_player_description">Lo que suena, con controles</string>
+    <string name="widget_shortcuts_description">Atajos para empezar a escuchar</string>
+</resources>
 """
 
 WIDGET_BG = """<?xml version="1.0" encoding="utf-8"?>
@@ -955,7 +962,7 @@ def write_widget_resources(package):
                 layout="widget_player",
                 height="110",
                 cells="2",
-                description="Lo que suena, con controles",
+                description="widget_player_description",
             )
         )
     with open(os.path.join(xml, "widget_shortcuts_info.xml"), "w", encoding="utf-8") as f:
@@ -964,9 +971,13 @@ def write_widget_resources(package):
                 layout="widget_shortcuts",
                 height="70",
                 cells="1",
-                description="Atajos para empezar a escuchar",
+                description="widget_shortcuts_description",
             )
         )
+    values = os.path.join(main_res, "values")
+    os.makedirs(values, exist_ok=True)
+    with open(os.path.join(values, "widget_strings.xml"), "w", encoding="utf-8") as f:
+        f.write(WIDGET_STRINGS)
     with open(os.path.join(drawable, "widget_bg.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_BG)
     with open(os.path.join(drawable, "widget_button_bg.xml"), "w", encoding="utf-8") as f:
