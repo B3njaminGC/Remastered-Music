@@ -1,11 +1,12 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import 'update_installer.dart';
-
 import '../core/app_settings.dart';
-import 'update_checker.dart';
 import '../theme/accent.dart';
+import 'update_checker.dart';
+import 'update_installer.dart';
 
 /// Al abrir la app: si está activado y pasaron unas horas desde la última
 /// vez, busca una versión nueva y, si la hay, avisa. Nunca molesta si falla.
@@ -99,7 +100,7 @@ class _DownloadDialog extends StatefulWidget {
 }
 
 class _DownloadDialogState extends State<_DownloadDialog> {
-  double? _progress;
+  DownloadProgress? _progress;
   String? _error;
   bool _cancelled = false;
 
@@ -110,59 +111,79 @@ class _DownloadDialogState extends State<_DownloadDialog> {
   }
 
   Future<void> _start() async {
+    setState(() {
+      _error = null;
+      _progress = null;
+    });
     try {
       final path = await UpdateInstaller.download(
         widget.update.downloadUrl,
-        onProgress: (p) {
-          if (mounted) setState(() => _progress = p);
+        onProgress: (progress) {
+          if (mounted && !_cancelled) setState(() => _progress = progress);
         },
         isCancelled: () => _cancelled,
       );
       if (!mounted || _cancelled) return;
-      Navigator.of(context).pop();
-      await UpdateInstaller.install(path);
-    } catch (e) {
-      if (mounted && !_cancelled) {
-        setState(() => _error = 'No se pudo descargar. Revisá tu conexión.');
+      final problem = await UpdateInstaller.install(path);
+      if (!mounted || _cancelled) return;
+      if (problem != null) {
+        setState(() => _error = problem);
+        return;
       }
+      Navigator.of(context).pop();
+    } catch (error) {
+      debugPrint('Falló la descarga de la actualización: $error');
+      if (!mounted || _cancelled) return;
+      setState(
+        () => _error = error is SocketException
+            ? '${error.message} Revisá tu conexión y probá de nuevo.'
+            : 'No se pudo descargar: $error',
+      );
     }
+  }
+
+  Future<void> _openInBrowser() async {
+    Navigator.of(context).pop();
+    await launchUrl(
+      Uri.parse(widget.update.pageUrl),
+      mode: LaunchMode.externalApplication,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final error = _error;
+    final progress = _progress;
     return AlertDialog(
-      title: Text(error == null ? 'Descargando…' : 'Algo falló'),
-      content: error == null
-          ? Column(
+      title: Text(error == null ? 'Descargando…' : 'No se pudo instalar'),
+      content: error != null
+          ? Text(error)
+          : Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LinearProgressIndicator(
-                  value: _progress,
-                  color: context.accent,
+                  value: progress?.fraction,
+                  color: Theme.of(context).colorScheme.primary,
                 ),
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Text(
-                  _progress == null
-                      ? 'Conectando…'
-                      : '${(_progress! * 100).floor()} %',
+                  progress == null
+                      ? 'Conectando con GitHub…'
+                      : progress.fraction != null
+                      ? '${(progress.fraction! * 100).floor()} %  ·  $progress'
+                      : '$progress descargados',
                 ),
               ],
-            )
-          : Text(error),
+            ),
       actions: [
-        if (error != null)
+        if (error != null) ...[
           TextButton(
-            onPressed: () async {
-              Navigator.of(context).pop();
-              await launchUrl(
-                Uri.parse(widget.update.pageUrl),
-                mode: LaunchMode.externalApplication,
-              );
-            },
+            onPressed: _openInBrowser,
             child: const Text('Abrir en el navegador'),
           ),
+          TextButton(onPressed: _start, child: const Text('Reintentar')),
+        ],
         TextButton(
           onPressed: () {
             _cancelled = true;
