@@ -28,6 +28,14 @@ base64 -w0 debug.keystore      # en macOS: base64 -i debug.keystore
 Pegá el resultado en *Settings → Secrets and variables → Actions* con el nombre `DEBUG_KEYSTORE_BASE64`.
 Guardá `debug.keystore` en un lugar seguro y **no lo subas al repo**.
 
+## Widgets de pantalla de inicio
+
+El código nativo lo escribe también `prepare_android.py` (`write_widget_resources`): `MainActivity.kt`
+(con el canal `resonar/widget`), `ResonarWidgets.kt`, los layouts y los íconos. Desde Dart, `lib/core/widget_bridge.dart`
+publica qué suena y recoge el atajo con el que se abrió la app. Los botones del widget hablan con el reproductor
+conectándose al servicio por *bind* (`MediaBrowserCompat`), nunca con `startForegroundService`, para que no puedan
+tumbar la app si el servicio no está vivo.
+
 ## Ícono
 
 `tools/ci/icon/` contiene los recursos generados; se regeneran con `python3 tools/ci/make_icons.py`.

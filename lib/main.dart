@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/app_settings.dart';
 import 'core/artwork_cache.dart';
 import 'core/audio_service.dart';
+import 'core/widget_bridge.dart';
 import 'core/widgets/mini_player.dart';
 import 'features/local/library_screen.dart';
 import 'features/local/playlist_service.dart';
@@ -57,6 +58,7 @@ Future<void> main() async {
   unawaited(AudioService().restoreLastSession());
   PlayStats.instance.attach(AudioService());
   AudioService().startFade();
+  WidgetBridge.attach(AudioService());
 
   final prefs = await SharedPreferences.getInstance();
   final bool seenOnboarding = prefs.getBool('seen_onboarding') ?? false;
@@ -139,7 +141,8 @@ class MainContainer extends StatefulWidget {
   State<MainContainer> createState() => _MainContainerState();
 }
 
-class _MainContainerState extends State<MainContainer> {
+class _MainContainerState extends State<MainContainer>
+    with WidgetsBindingObserver {
   static const int _nowPlayingTab = 2;
 
   late bool _showOnboarding;
@@ -149,17 +152,40 @@ class _MainContainerState extends State<MainContainer> {
   void initState() {
     super.initState();
     _showOnboarding = !widget.seenOnboarding;
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_showOnboarding) unawaited(_afterFirstFrame());
     });
   }
 
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && !_showOnboarding) {
+      unawaited(_runWidgetAction());
+    }
+  }
+
   /// Permiso de notificaciones (Android 13+: sin él no aparece el control de
   /// la canción en la barra de notificaciones) y, después, el aviso de versión.
   Future<void> _afterFirstFrame() async {
+    await _runWidgetAction();
     await _askNotificationPermission();
     if (!mounted) return;
     await checkForUpdateOnLaunch(context);
+  }
+
+  /// Atajo pedido desde un widget de la pantalla de inicio.
+  Future<void> _runWidgetAction() async {
+    final action = await WidgetBridge.takeAction();
+    if (action == null) return;
+    final tab = await WidgetBridge.runAction(action);
+    if (tab != null && mounted) setState(() => _currentIndex = tab);
   }
 
   Future<void> _askNotificationPermission() async {
