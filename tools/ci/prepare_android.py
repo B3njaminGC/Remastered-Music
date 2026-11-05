@@ -213,7 +213,8 @@ KEEP_XML = (
     '    tools:keep="@drawable/audio_service_*,@drawable/ic_notification,'
     '@drawable/ic_heart,@drawable/ic_heart_outline,@mipmap/ic_launcher,'
     '@layout/widget_player,@layout/widget_shortcuts,@drawable/widget_bg,'
-    '@drawable/widget_button_bg,@drawable/ic_widget_*,@xml/widget_*" />\n'
+    '@drawable/widget_button_bg,@drawable/widget_button_bg_dark,'
+    '@drawable/ic_widget_*,@xml/widget_*" />\n'
 )
 
 
@@ -253,7 +254,7 @@ WIDGET_RECEIVERS = """        <receiver android:name=".PlayerWidget" android:exp
         <receiver android:name=".WidgetActionReceiver" android:exported="false" />
 """
 
-MAIN_ACTIVITY = """package {package}
+MAIN_ACTIVITY = """package __PACKAGE__
 
 import android.appwidget.AppWidgetManager
 import android.content.ComponentName
@@ -265,88 +266,76 @@ import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 /** Actividad principal: audio en segundo plano + puente con los widgets. */
-class MainActivity : AudioServiceActivity() {{
+class MainActivity : AudioServiceActivity() {
     private var pendingAction: String? = null
 
-    override fun onCreate(savedInstanceState: Bundle?) {{
+    override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingAction = intent?.getStringExtra(EXTRA_ACTION)
-    }}
+    }
 
-    override fun onNewIntent(intent: Intent) {{
+    override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
         pendingAction = intent.getStringExtra(EXTRA_ACTION)
-    }}
+    }
 
-    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {{
+    override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-            .setMethodCallHandler {{ call, result ->
-                when (call.method) {{
-                    "update" -> {{
-                        saveState(
-                            this,
-                            call.argument("title"),
-                            call.argument("artist"),
-                            call.argument("art"),
-                            call.argument<Boolean>("playing") ?: false,
-                            call.argument<Int>("accent") ?: DEFAULT_ACCENT,
-                        )
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "update" -> {
+                        saveState(this, call)
                         refreshWidgets(this)
                         result.success(null)
-                    }}
-                    "takeAction" -> {{
+                    }
+                    "takeAction" -> {
                         val action = pendingAction
                         pendingAction = null
                         result.success(action)
-                    }}
+                    }
                     else -> result.notImplemented()
-                }}
-            }}
-    }}
+                }
+            }
+    }
 
-    companion object {{
+    companion object {
         const val CHANNEL = "resonar/widget"
         const val EXTRA_ACTION = "resonar_action"
         const val PREFS = "resonar_widget"
         const val DEFAULT_ACCENT = -0xaddd4 // 0xFFFF5722
 
-        fun saveState(
-            context: Context,
-            title: String?,
-            artist: String?,
-            art: String?,
-            playing: Boolean,
-            accent: Int,
-        ) {{
+        private fun saveState(context: Context, call: io.flutter.plugin.common.MethodCall) {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit()
-                .putString("title", title)
-                .putString("artist", artist)
-                .putString("art", art)
-                .putBoolean("playing", playing)
-                .putInt("accent", accent)
+                .putString("title", call.argument("title"))
+                .putString("artist", call.argument("artist"))
+                .putString("art", call.argument("art"))
+                .putBoolean("playing", call.argument<Boolean>("playing") ?: false)
+                .putInt("accent", call.argument<Int>("accent") ?: DEFAULT_ACCENT)
+                .putString("style", call.argument("style") ?: "dark")
+                .putInt("opacity", call.argument<Int>("opacity") ?: 90)
                 .apply()
-        }}
+        }
 
         /** Pide a Android que vuelva a dibujar los widgets colocados. */
-        fun refreshWidgets(context: Context) {{
+        fun refreshWidgets(context: Context) {
             val manager = AppWidgetManager.getInstance(context) ?: return
-            for (cls in listOf(PlayerWidget::class.java, ShortcutsWidget::class.java)) {{
+            for (cls in listOf(PlayerWidget::class.java, ShortcutsWidget::class.java)) {
                 val ids = manager.getAppWidgetIds(ComponentName(context, cls))
                 if (ids == null || ids.isEmpty()) continue
-                val intent = Intent(context, cls).apply {{
+                val intent = Intent(context, cls).apply {
                     action = AppWidgetManager.ACTION_APPWIDGET_UPDATE
                     putExtra(AppWidgetManager.EXTRA_APPWIDGET_IDS, ids)
-                }}
+                }
                 context.sendBroadcast(intent)
-            }}
-        }}
-    }}
-}}
+            }
+        }
+    }
+}
 """
 
-WIDGETS_KT = """package {package}
+WIDGETS_KT = """package __PACKAGE__
 
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
@@ -355,14 +344,17 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.PorterDuff
 import android.graphics.PorterDuffXfermode
 import android.graphics.Rect
 import android.graphics.RectF
+import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
 import android.support.v4.media.MediaBrowserCompat
@@ -374,22 +366,61 @@ import android.widget.RemoteViews
 private const val TAG = "ResonarWidget"
 internal const val EXTRA_MEDIA_ACTION = "media_action"
 
-/** Abre la app; con [action] le pide algo al arrancar (ver WidgetBridge en Dart). */
-internal fun openApp(context: Context, action: String?): PendingIntent {{
-    val intent = Intent(context, MainActivity::class.java).apply {{
+/** Colores del widget, según lo elegido en Ajustes. */
+internal data class WidgetStyle(
+    val background: Int,
+    val onColor: Int,
+    val buttonBackground: Int,
+    val useArtwork: Boolean,
+    val alpha: Int,
+) {
+    companion object {
+        fun from(prefs: SharedPreferences): WidgetStyle {
+            val accent = prefs.getInt("accent", MainActivity.DEFAULT_ACCENT)
+            val opacity = prefs.getInt("opacity", 90).coerceIn(0, 100)
+            val style = prefs.getString("style", "dark") ?: "dark"
+            val base = when (style) {
+                "light" -> 0xFFF4F4F4.toInt()
+                "accent" -> accent
+                else -> 0xFF121212.toInt()
+            }
+            val luminance = (
+                0.299 * Color.red(base) +
+                    0.587 * Color.green(base) +
+                    0.114 * Color.blue(base)
+                ) / 255.0
+            val light = style != "artwork" && luminance > 0.62
+            return WidgetStyle(
+                background = base,
+                onColor = if (light) 0xFF101010.toInt() else Color.WHITE,
+                buttonBackground = if (light) {
+                    R.drawable.widget_button_bg_dark
+                } else {
+                    R.drawable.widget_button_bg
+                },
+                useArtwork = style == "artwork",
+                alpha = (opacity * 255 / 100).coerceIn(0, 255),
+            )
+        }
+    }
+}
+
+/** Abre la app; con [action] le pide algo al arrancar (ver widget_bridge.dart). */
+internal fun openApp(context: Context, action: String?): PendingIntent {
+    val intent = Intent(context, MainActivity::class.java).apply {
         flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
         if (action != null) putExtra(MainActivity.EXTRA_ACTION, action)
-    }}
+    }
     return PendingIntent.getActivity(
         context,
         (action ?: "open").hashCode(),
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
-}}
+}
 
 /** Manda una orden al reproductor sin abrir la app. */
-internal fun mediaAction(context: Context, action: String): PendingIntent {{
+internal fun mediaAction(context: Context, action: String): PendingIntent {
     val intent = Intent(context, WidgetActionReceiver::class.java)
         .putExtra(EXTRA_MEDIA_ACTION, action)
     return PendingIntent.getBroadcast(
@@ -398,21 +429,49 @@ internal fun mediaAction(context: Context, action: String): PendingIntent {{
         intent,
         PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
     )
-}}
+}
+
+/** Tamaño real del widget en píxeles (para dibujar el fondo sin deformarlo). */
+internal fun widgetSize(
+    context: Context,
+    manager: AppWidgetManager,
+    id: Int,
+    fallbackHeightDp: Int,
+): Pair<Int, Int> {
+    val density = context.resources.displayMetrics.density
+    val options = try {
+        manager.getAppWidgetOptions(id)
+    } catch (error: Throwable) {
+        null
+    }
+    val widthDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0) ?: 0
+    val heightDp = options?.getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_HEIGHT, 0) ?: 0
+    val width = ((if (widthDp > 0) widthDp else 300) * density).toInt().coerceIn(120, 1600)
+    val height = (
+        (if (heightDp > 0) heightDp else fallbackHeightDp) * density
+        ).toInt().coerceIn(60, 1200)
+    return width to height
+}
+
+private fun decodeScaled(path: String?, minSide: Int): Bitmap? {
+    if (path.isNullOrEmpty()) return null
+    return try {
+        val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        BitmapFactory.decodeFile(path, bounds)
+        if (bounds.outWidth <= 0) return null
+        var sample = 1
+        while (bounds.outWidth / (sample * 2) >= minSide) sample *= 2
+        BitmapFactory.decodeFile(path, BitmapFactory.Options().apply { inSampleSize = sample })
+    } catch (error: Throwable) {
+        Log.w(TAG, "No se pudo leer la carátula", error)
+        null
+    }
+}
 
 /** Recorta la carátula en un cuadrado con esquinas redondeadas. */
-internal fun roundedArt(path: String?, size: Int): Bitmap? {{
-    if (path.isNullOrEmpty()) return null
-    return try {{
-        val options = BitmapFactory.Options().apply {{ inJustDecodeBounds = true }}
-        BitmapFactory.decodeFile(path, options)
-        if (options.outWidth <= 0) return null
-        var sample = 1
-        while (options.outWidth / sample > size * 2) sample *= 2
-        val source = BitmapFactory.decodeFile(
-            path,
-            BitmapFactory.Options().apply {{ inSampleSize = sample }},
-        ) ?: return null
+internal fun roundedArt(path: String?, size: Int): Bitmap? {
+    val source = decodeScaled(path, size) ?: return null
+    return try {
         val side = minOf(source.width, source.height)
         val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
         val canvas = Canvas(output)
@@ -427,87 +486,189 @@ internal fun roundedArt(path: String?, size: Int): Bitmap? {{
             (source.height + side) / 2,
         )
         canvas.drawBitmap(source, src, target, paint)
-        if (source !== output) source.recycle()
         output
-    }} catch (error: Throwable) {{
+    } catch (error: Throwable) {
         Log.w(TAG, "No se pudo preparar la carátula del widget", error)
         null
-    }}
-}}
+    }
+}
+
+/** Fondo del widget: color liso o la carátula, con esquinas y opacidad. */
+internal fun backgroundBitmap(
+    context: Context,
+    style: WidgetStyle,
+    artPath: String?,
+    width: Int,
+    height: Int,
+): Bitmap? {
+    return try {
+        val radius = 22f * context.resources.displayMetrics.density
+        val output = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(output)
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+        val target = RectF(0f, 0f, width.toFloat(), height.toFloat())
+        val art = if (style.useArtwork) decodeScaled(artPath, maxOf(width, height)) else null
+        paint.color = if (art != null) Color.BLACK else style.background
+        paint.alpha = style.alpha
+        canvas.drawRoundRect(target, radius, radius, paint)
+        if (art != null) {
+            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+            // Recorte central que llene el widget sin deformar la imagen.
+            val scale = maxOf(width.toFloat() / art.width, height.toFloat() / art.height)
+            val cropWidth = (width / scale).toInt().coerceAtMost(art.width)
+            val cropHeight = (height / scale).toInt().coerceAtMost(art.height)
+            val src = Rect(
+                (art.width - cropWidth) / 2,
+                (art.height - cropHeight) / 2,
+                (art.width + cropWidth) / 2,
+                (art.height + cropHeight) / 2,
+            )
+            canvas.drawBitmap(art, src, target, paint)
+            paint.xfermode = null
+            // Velo oscuro para que el texto se lea sobre cualquier portada.
+            paint.color = Color.BLACK
+            paint.alpha = (style.alpha * 0.45f).toInt().coerceIn(0, 255)
+            canvas.drawRoundRect(target, radius, radius, paint)
+        }
+        output
+    } catch (error: Throwable) {
+        Log.w(TAG, "No se pudo dibujar el fondo del widget", error)
+        null
+    }
+}
 
 /** Widget grande: carátula, título, artista y controles. */
-class PlayerWidget : AppWidgetProvider() {{
+class PlayerWidget : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
-    ) {{
-        val views = build(context)
-        for (id in appWidgetIds) appWidgetManager.updateAppWidget(id, views)
-    }}
+    ) {
+        for (id in appWidgetIds) {
+            appWidgetManager.updateAppWidget(id, build(context, appWidgetManager, id))
+        }
+    }
 
-    private fun build(context: Context): RemoteViews {{
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        appWidgetManager.updateAppWidget(appWidgetId, build(context, appWidgetManager, appWidgetId))
+    }
+
+    private fun build(
+        context: Context,
+        manager: AppWidgetManager,
+        id: Int,
+    ): RemoteViews {
         val prefs = context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
-        val views = RemoteViews(context.packageName, R.layout.widget_player)
-        val title = prefs.getString("title", null)
-        val playing = prefs.getBoolean("playing", false)
+        val style = WidgetStyle.from(prefs)
         val accent = prefs.getInt("accent", MainActivity.DEFAULT_ACCENT)
+        val artPath = prefs.getString("art", null)
+        val views = RemoteViews(context.packageName, R.layout.widget_player)
 
-        views.setTextViewText(R.id.widget_title, title ?: "Resonar")
+        val (width, height) = widgetSize(context, manager, id, 110)
+        val background = backgroundBitmap(context, style, artPath, width, height)
+        if (background != null) views.setImageViewBitmap(R.id.widget_bg, background)
+
+        views.setTextViewText(R.id.widget_title, prefs.getString("title", null) ?: "Resonar")
         views.setTextViewText(
             R.id.widget_artist,
             prefs.getString("artist", null) ?: "Tocá para elegir música",
         )
-        val art = roundedArt(prefs.getString("art", null), 160)
-        if (art != null) {{
+        views.setTextColor(R.id.widget_title, style.onColor)
+        views.setTextColor(R.id.widget_artist, style.onColor)
+
+        val art = roundedArt(artPath, 160)
+        if (art != null) {
             views.setImageViewBitmap(R.id.widget_art, art)
-        }} else {{
+        } else {
             views.setImageViewResource(R.id.widget_art, R.drawable.ic_widget_note)
             views.setInt(R.id.widget_art, "setColorFilter", accent)
-        }}
+        }
         views.setImageViewResource(
             R.id.widget_play,
-            if (playing) R.drawable.ic_widget_pause else R.drawable.ic_widget_play,
+            if (prefs.getBoolean("playing", false)) {
+                R.drawable.ic_widget_pause
+            } else {
+                R.drawable.ic_widget_play
+            },
         )
+        for (button in listOf(R.id.widget_prev, R.id.widget_play, R.id.widget_next)) {
+            views.setInt(button, "setBackgroundResource", style.buttonBackground)
+        }
+        views.setInt(R.id.widget_prev, "setColorFilter", style.onColor)
+        views.setInt(R.id.widget_next, "setColorFilter", style.onColor)
         views.setInt(R.id.widget_play, "setColorFilter", accent)
+
         views.setOnClickPendingIntent(R.id.widget_root, openApp(context, null))
         views.setOnClickPendingIntent(R.id.widget_prev, mediaAction(context, "prev"))
         views.setOnClickPendingIntent(R.id.widget_play, mediaAction(context, "play_pause"))
         views.setOnClickPendingIntent(R.id.widget_next, mediaAction(context, "next"))
         return views
-    }}
-}}
+    }
+}
 
 /** Widget chico: atajos para empezar a escuchar de una. */
-class ShortcutsWidget : AppWidgetProvider() {{
+class ShortcutsWidget : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray,
-    ) {{
+    ) {
+        for (id in appWidgetIds) {
+            appWidgetManager.updateAppWidget(id, build(context, appWidgetManager, id))
+        }
+    }
+
+    override fun onAppWidgetOptionsChanged(
+        context: Context,
+        appWidgetManager: AppWidgetManager,
+        appWidgetId: Int,
+        newOptions: Bundle,
+    ) {
+        appWidgetManager.updateAppWidget(appWidgetId, build(context, appWidgetManager, appWidgetId))
+    }
+
+    private fun build(context: Context, manager: AppWidgetManager, id: Int): RemoteViews {
         val prefs = context.getSharedPreferences(MainActivity.PREFS, Context.MODE_PRIVATE)
+        val style = WidgetStyle.from(prefs)
         val accent = prefs.getInt("accent", MainActivity.DEFAULT_ACCENT)
         val views = RemoteViews(context.packageName, R.layout.widget_shortcuts)
-        for ((id, action) in listOf(
+
+        val (width, height) = widgetSize(context, manager, id, 70)
+        val background = backgroundBitmap(
+            context,
+            style,
+            prefs.getString("art", null),
+            width,
+            height,
+        )
+        if (background != null) views.setImageViewBitmap(R.id.widget_bg, background)
+
+        for ((viewId, action) in listOf(
             R.id.shortcut_resume to "resume",
             R.id.shortcut_shuffle to "shuffle",
             R.id.shortcut_favorites to "favorites",
             R.id.shortcut_search to "search",
-        )) {{
-            views.setOnClickPendingIntent(id, openApp(context, action))
-            views.setInt(id, "setColorFilter", accent)
-        }}
-        for (id in appWidgetIds) appWidgetManager.updateAppWidget(id, views)
-    }}
-}}
+        )) {
+            views.setOnClickPendingIntent(viewId, openApp(context, action))
+            views.setInt(viewId, "setBackgroundResource", style.buttonBackground)
+            views.setInt(viewId, "setColorFilter", accent)
+        }
+        return views
+    }
+}
 
 /**
  * Pasa la orden del widget al reproductor conectándose al servicio de audio.
  * Se usa "bind" (y no "start") para que nunca pueda tumbar la app si el
  * servicio no está vivo: en ese caso simplemente no pasa nada.
  */
-class WidgetActionReceiver : BroadcastReceiver() {{
-    override fun onReceive(context: Context, intent: Intent) {{
+class WidgetActionReceiver : BroadcastReceiver() {
+    override fun onReceive(context: Context, intent: Intent) {
         val action = intent.getStringExtra(EXTRA_MEDIA_ACTION) ?: return
         val result = goAsync()
         val appContext = context.applicationContext
@@ -515,45 +676,45 @@ class WidgetActionReceiver : BroadcastReceiver() {{
         var browser: MediaBrowserCompat? = null
         val handler = Handler(Looper.getMainLooper())
 
-        fun finish() {{
+        fun finish() {
             if (finished) return
             finished = true
-            try {{
+            try {
                 browser?.disconnect()
-            }} catch (error: Throwable) {{
+            } catch (error: Throwable) {
                 Log.w(TAG, "No se pudo cerrar la conexión", error)
-            }}
+            }
             result.finish()
-        }}
+        }
 
-        val callback = object : MediaBrowserCompat.ConnectionCallback() {{
-            override fun onConnected() {{
-                try {{
+        val callback = object : MediaBrowserCompat.ConnectionCallback() {
+            override fun onConnected() {
+                try {
                     val token = browser?.sessionToken ?: return
                     val controller = MediaControllerCompat(appContext, token)
                     val state = controller.playbackState?.state
-                    when (action) {{
+                    when (action) {
                         "play_pause" ->
-                            if (state == PlaybackStateCompat.STATE_PLAYING) {{
+                            if (state == PlaybackStateCompat.STATE_PLAYING) {
                                 controller.transportControls.pause()
-                            }} else {{
+                            } else {
                                 controller.transportControls.play()
-                            }}
+                            }
                         "next" -> controller.transportControls.skipToNext()
                         "prev" -> controller.transportControls.skipToPrevious()
-                    }}
-                }} catch (error: Throwable) {{
+                    }
+                } catch (error: Throwable) {
                     Log.w(TAG, "No se pudo enviar la orden al reproductor", error)
-                }}
-                handler.postDelayed({{ finish() }}, 1200)
-            }}
+                }
+                handler.postDelayed({ finish() }, 1200)
+            }
 
             override fun onConnectionFailed() = finish()
 
             override fun onConnectionSuspended() = finish()
-        }}
+        }
 
-        try {{
+        try {
             browser = MediaBrowserCompat(
                 appContext,
                 ComponentName(appContext, "com.ryanheise.audioservice.AudioService"),
@@ -562,120 +723,145 @@ class WidgetActionReceiver : BroadcastReceiver() {{
             )
             browser.connect()
             // Red de seguridad: si el servicio nunca contesta, se corta igual.
-            handler.postDelayed({{ finish() }}, 4000)
-        }} catch (error: Throwable) {{
+            handler.postDelayed({ finish() }, 4000)
+        } catch (error: Throwable) {
             Log.w(TAG, "No se pudo conectar con el reproductor", error)
             finish()
-        }}
-    }}
-}}
+        }
+    }
+}
 """
 
 WIDGET_LAYOUT_PLAYER = """<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/widget_root"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="12dp">
+    android:layout_height="match_parent">
 
     <ImageView
-        android:id="@+id/widget_art"
-        android:layout_width="72dp"
-        android:layout_height="72dp"
-        android:contentDescription="Carátula"
-        android:scaleType="centerCrop"
-        android:src="@drawable/ic_widget_note" />
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg" />
 
     <LinearLayout
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="12dp"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="12dp">
 
-        <TextView
-            android:id="@+id/widget_title"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Resonar"
-            android:textColor="#FFFFFFFF"
-            android:textSize="15sp"
-            android:textStyle="bold" />
-
-        <TextView
-            android:id="@+id/widget_artist"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:ellipsize="end"
-            android:maxLines="1"
-            android:text="Tocá para elegir música"
-            android:textColor="#B3FFFFFF"
-            android:textSize="12sp" />
+        <ImageView
+            android:id="@+id/widget_art"
+            android:layout_width="72dp"
+            android:layout_height="72dp"
+            android:contentDescription="Carátula"
+            android:scaleType="centerCrop"
+            android:src="@drawable/ic_widget_note" />
 
         <LinearLayout
-            android:layout_width="wrap_content"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginTop="4dp"
-            android:orientation="horizontal">
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:orientation="vertical">
 
-            <ImageView
-                android:id="@+id/widget_prev"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:background="@drawable/widget_button_bg"
-                android:contentDescription="Anterior"
-                android:padding="8dp"
-                android:src="@drawable/ic_widget_prev" />
+            <TextView
+                android:id="@+id/widget_title"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Resonar"
+                android:textColor="#FFFFFFFF"
+                android:textSize="15sp"
+                android:textStyle="bold" />
 
-            <ImageView
-                android:id="@+id/widget_play"
-                android:layout_width="44dp"
-                android:layout_height="44dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/widget_button_bg"
-                android:contentDescription="Reproducir o pausar"
-                android:padding="8dp"
-                android:src="@drawable/ic_widget_play" />
+            <TextView
+                android:id="@+id/widget_artist"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:ellipsize="end"
+                android:maxLines="1"
+                android:text="Tocá para elegir música"
+                android:textColor="#B3FFFFFF"
+                android:textSize="12sp" />
 
-            <ImageView
-                android:id="@+id/widget_next"
-                android:layout_width="40dp"
-                android:layout_height="40dp"
-                android:layout_marginStart="8dp"
-                android:background="@drawable/widget_button_bg"
-                android:contentDescription="Siguiente"
-                android:padding="8dp"
-                android:src="@drawable/ic_widget_next" />
+            <LinearLayout
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:orientation="horizontal">
+
+                <ImageView
+                    android:id="@+id/widget_prev"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:background="@drawable/widget_button_bg"
+                    android:contentDescription="Anterior"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_widget_prev" />
+
+                <ImageView
+                    android:id="@+id/widget_play"
+                    android:layout_width="44dp"
+                    android:layout_height="44dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/widget_button_bg"
+                    android:contentDescription="Reproducir o pausar"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_widget_play" />
+
+                <ImageView
+                    android:id="@+id/widget_next"
+                    android:layout_width="40dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/widget_button_bg"
+                    android:contentDescription="Siguiente"
+                    android:padding="8dp"
+                    android:src="@drawable/ic_widget_next" />
+            </LinearLayout>
         </LinearLayout>
     </LinearLayout>
-</LinearLayout>
+</FrameLayout>
 """
 
-SHORTCUT_ITEM = """    <ImageView
-        android:id="@+id/{id}"
-        android:layout_width="0dp"
-        android:layout_height="48dp"
-        android:layout_weight="1"
-        android:background="@drawable/widget_button_bg"
-        android:contentDescription="{label}"
-        android:padding="12dp"
-        android:src="@drawable/{icon}" />
+SHORTCUT_ITEM = """        <ImageView
+            android:id="@+id/{id}"
+            android:layout_width="0dp"
+            android:layout_height="48dp"
+            android:layout_weight="1"
+            android:layout_marginStart="{margin}dp"
+            android:background="@drawable/widget_button_bg"
+            android:contentDescription="{label}"
+            android:padding="12dp"
+            android:src="@drawable/{icon}" />
 """
 
 WIDGET_LAYOUT_SHORTCUTS = """<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="@drawable/widget_bg"
-    android:gravity="center_vertical"
-    android:orientation="horizontal"
-    android:padding="10dp">
-{items}</LinearLayout>
+    android:layout_height="match_parent">
+
+    <ImageView
+        android:id="@+id/widget_bg"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:contentDescription="@null"
+        android:scaleType="fitXY"
+        android:src="@drawable/widget_bg" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:padding="10dp">
+{items}    </LinearLayout>
+</FrameLayout>
 """
 
 SHORTCUT_ITEMS = [
@@ -687,10 +873,14 @@ SHORTCUT_ITEMS = [
 
 WIDGET_INFO = """<?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="{description}"
     android:initialLayout="@layout/{layout}"
     android:minHeight="{height}dp"
     android:minWidth="250dp"
+    android:previewLayout="@layout/{layout}"
     android:resizeMode="horizontal|vertical"
+    android:targetCellHeight="{cells}"
+    android:targetCellWidth="4"
     android:updatePeriodMillis="0"
     android:widgetCategory="home_screen" />
 """
@@ -707,6 +897,13 @@ WIDGET_BUTTON_BG = """<?xml version="1.0" encoding="utf-8"?>
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="oval">
     <solid android:color="#1FFFFFFF" />
+</shape>
+"""
+
+WIDGET_BUTTON_BG_DARK = """<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="oval">
+    <solid android:color="#14000000" />
 </shape>
 """
 
@@ -731,33 +928,53 @@ def write_widget_resources(package):
     if os.path.exists(java_activity):
         os.remove(java_activity)
     with open(os.path.join(kotlin_dir, "MainActivity.kt"), "w", encoding="utf-8") as f:
-        f.write(MAIN_ACTIVITY.format(package=package))
+        f.write(MAIN_ACTIVITY.replace("__PACKAGE__", package))
     with open(os.path.join(kotlin_dir, "ResonarWidgets.kt"), "w", encoding="utf-8") as f:
-        f.write(WIDGETS_KT.format(package=package))
+        f.write(WIDGETS_KT.replace("__PACKAGE__", package))
 
-    res = os.path.join(main, "res")
-    layout = os.path.join(res, "layout")
-    xml = os.path.join(res, "xml")
-    drawable = os.path.join(res, "drawable")
+    main_res = os.path.join(main, "res")
+    layout = os.path.join(main_res, "layout")
+    xml = os.path.join(main_res, "xml")
+    drawable = os.path.join(main_res, "drawable")
     for folder in (layout, xml, drawable):
         os.makedirs(folder, exist_ok=True)
 
     with open(os.path.join(layout, "widget_player.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_LAYOUT_PLAYER)
     items = "".join(
-        SHORTCUT_ITEM.format(id=i, label=label, icon=icon)
-        for i, label, icon in SHORTCUT_ITEMS
+        SHORTCUT_ITEM.format(
+            id=item[0], label=item[1], icon=item[2], margin=0 if index == 0 else 8
+        )
+        for index, item in enumerate(SHORTCUT_ITEMS)
     )
     with open(os.path.join(layout, "widget_shortcuts.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_LAYOUT_SHORTCUTS.format(items=items))
     with open(os.path.join(xml, "widget_player_info.xml"), "w", encoding="utf-8") as f:
-        f.write(WIDGET_INFO.format(layout="widget_player", height="110"))
+        f.write(
+            WIDGET_INFO.format(
+                layout="widget_player",
+                height="110",
+                cells="2",
+                description="Lo que suena, con controles",
+            )
+        )
     with open(os.path.join(xml, "widget_shortcuts_info.xml"), "w", encoding="utf-8") as f:
-        f.write(WIDGET_INFO.format(layout="widget_shortcuts", height="70"))
+        f.write(
+            WIDGET_INFO.format(
+                layout="widget_shortcuts",
+                height="70",
+                cells="1",
+                description="Atajos para empezar a escuchar",
+            )
+        )
     with open(os.path.join(drawable, "widget_bg.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_BG)
     with open(os.path.join(drawable, "widget_button_bg.xml"), "w", encoding="utf-8") as f:
         f.write(WIDGET_BUTTON_BG)
+    with open(
+        os.path.join(drawable, "widget_button_bg_dark.xml"), "w", encoding="utf-8"
+    ) as f:
+        f.write(WIDGET_BUTTON_BG_DARK)
     for name, path in WIDGET_ICONS.items():
         with open(os.path.join(drawable, name + ".xml"), "w", encoding="utf-8") as f:
             f.write(VECTOR.format(path=path))
@@ -801,7 +1018,6 @@ def patch_gradle_dependencies():
         text = text.rstrip() + "\n\ndependencies {\n" + line + "\n}\n"
     open(path, "w", encoding="utf-8").write(text)
     print("Dependencias: androidx.media añadida.")
-
 
 if __name__ == "__main__":
     generated = generate_android()

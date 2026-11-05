@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import '../library/favorites_repository.dart';
 import '../library/track_index.dart';
 import '../theme/theme_controller.dart';
+import 'app_settings.dart';
 import 'artwork_cache.dart';
 import 'audio_service.dart';
 
@@ -22,11 +23,13 @@ class WidgetBridge {
 
   static bool _attached = false;
   static String? _lastSignature;
+  static AudioService? _audio;
 
   /// Empieza a reflejar en los widgets lo que suena.
   static void attach(AudioService audio) {
     if (_attached || !Platform.isAndroid) return;
     _attached = true;
+    _audio = audio;
     void push() => unawaited(_push(audio));
     audio.titleNotifier.addListener(push);
     audio.artworkBytesNotifier.addListener(push);
@@ -35,13 +38,23 @@ class WidgetBridge {
     push();
   }
 
+  /// Vuelve a dibujar los widgets (al cambiar su aspecto en Ajustes).
+  static void refresh() {
+    final audio = _audio;
+    if (audio == null) return;
+    _lastSignature = null;
+    unawaited(_push(audio));
+  }
+
   static Future<void> _push(AudioService audio) async {
     final path = audio.currentPathNotifier.value;
     final playing = audio.player.playing;
     final art = path == null ? null : ArtworkCache.uriFor(path)?.toFilePath();
+    final settings = AppSettings.instance;
     final signature =
         '${audio.titleNotifier.value}|${audio.artistNotifier.value}'
-        '|$art|$playing|${AppThemeController.instance.accentIndex}';
+        '|$art|$playing|${AppThemeController.instance.accentIndex}'
+        '|${settings.widgetStyle}|${settings.widgetOpacity}';
     if (signature == _lastSignature) return;
     _lastSignature = signature;
     try {
@@ -51,6 +64,8 @@ class WidgetBridge {
         'art': art,
         'playing': playing,
         'accent': AppThemeController.instance.accent.toARGB32(),
+        'style': settings.widgetStyle,
+        'opacity': settings.widgetOpacity,
       });
     } catch (error) {
       debugPrint('No se pudo actualizar el widget: $error');

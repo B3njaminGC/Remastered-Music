@@ -156,6 +156,77 @@ class AudioService {
         });
   }
 
+  Duration _lastWatchPosition = Duration.zero;
+  int _stuckTicks = 0;
+
+  /// Vigila el final de cada canción. Si el reproductor se queda clavado en el
+  /// último segundo (pasa con archivos cuya duración está mal escrita, típico
+  /// de descargas) pasa solo a la siguiente en vez de quedarse mudo.
+  void startEndWatchdog() {
+    _player.processingStateStream.listen((state) {
+      if (state == ProcessingState.completed) unawaited(_onQueueFinished());
+    });
+    Timer.periodic(const Duration(seconds: 2), (_) {
+      if (!_player.playing) {
+        _stuckTicks = 0;
+        return;
+      }
+      final duration = _player.duration;
+      final position = _player.position;
+      if (duration == null || duration <= Duration.zero) {
+        _stuckTicks = 0;
+        return;
+      }
+      final moved =
+          (position - _lastWatchPosition).abs() >
+          const Duration(milliseconds: 400);
+      _lastWatchPosition = position;
+      if (duration - position > const Duration(seconds: 2) || moved) {
+        _stuckTicks = 0;
+        return;
+      }
+      _stuckTicks++;
+      if (_stuckTicks < 2) return; // ~4 s sin avanzar al final
+      _stuckTicks = 0;
+      debugPrint('El reproductor se trabó al final: paso a la siguiente.');
+      unawaited(_recoverFromStall());
+    });
+  }
+
+  Future<void> _recoverFromStall() async {
+    if (_player.hasNext) {
+      try {
+        await _player.seekToNext();
+        await _startPlayback();
+        return;
+      } catch (error) {
+        debugPrint('No se pudo saltar tras trabarse: $error');
+      }
+    }
+    await _onQueueFinished();
+  }
+
+  /// Se terminó la cola. Con aleatorio puesto la baraja de nuevo y sigue;
+  /// si no, vuelve al principio y queda en pausa (y no clavado en el final).
+  Future<void> _onQueueFinished() async {
+    try {
+      if (shuffleNotifier.value && _queue.length > 1) {
+        await _player.shuffle();
+        final indices = _player.shuffleIndices;
+        final first = (indices != null && indices.isNotEmpty)
+            ? indices.first
+            : 0;
+        await _player.seek(Duration.zero, index: first);
+        await _startPlayback();
+        return;
+      }
+      await _player.pause();
+      await _player.seek(Duration.zero, index: 0);
+    } catch (error) {
+      debugPrint('No se pudo cerrar la cola: $error');
+    }
+  }
+
   Future<void> _configureAudioSession() async {
     try {
       final session = await AudioSession.instance;

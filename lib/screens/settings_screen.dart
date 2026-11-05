@@ -10,6 +10,7 @@ import '../core/audio_service.dart';
 import '../features/local/library_actions.dart';
 import '../library/library_repository.dart';
 import '../library/track_index.dart';
+import '../core/widget_bridge.dart';
 import '../theme/theme_controller.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
@@ -32,6 +33,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _pauseOnHeadphoneDisconnect = _settings.pauseOnHeadphoneDisconnect;
   late bool _lyricsOnline = _settings.lyricsOnline;
   late bool _checkUpdates = _settings.checkUpdates;
+  late String _widgetStyle = _settings.widgetStyle;
+  late double _widgetOpacity = _settings.widgetOpacity.toDouble();
   late int _fadeSeconds = _settings.fadeSeconds;
   late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
@@ -175,6 +178,77 @@ class _SettingsScreenState extends State<SettingsScreen> {
     ),
   );
 
+  static const Map<String, String> _widgetStyles = {
+    'dark': 'Oscuro',
+    'light': 'Claro',
+    'accent': 'Acento',
+    'artwork': 'Carátula',
+  };
+
+  Widget _widgetCard() => Card(
+    child: Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            'Fondo de los widgets',
+            style: TextStyle(fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              for (final entry in _widgetStyles.entries)
+                ChoiceChip(
+                  label: Text(entry.value),
+                  selected: _widgetStyle == entry.key,
+                  onSelected: (_) {
+                    _settings.setWidgetStyle(entry.key);
+                    setState(() => _widgetStyle = entry.key);
+                    WidgetBridge.refresh();
+                  },
+                ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Text('Opacidad'),
+              Expanded(
+                child: Slider(
+                  value: _widgetOpacity,
+                  min: 0,
+                  max: 100,
+                  divisions: 20,
+                  label: '${_widgetOpacity.round()} %',
+                  onChanged: (value) => setState(() => _widgetOpacity = value),
+                  onChangeEnd: (value) {
+                    _settings.setWidgetOpacity(value.round());
+                    WidgetBridge.refresh();
+                  },
+                ),
+              ),
+              SizedBox(
+                width: 44,
+                child: Text(
+                  '${_widgetOpacity.round()} %',
+                  textAlign: TextAlign.end,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+          const Text(
+            'Mantené apretada la pantalla de inicio y buscá Resonar para '
+            'agregarlos. Los cambios se ven al instante.',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
+        ],
+      ),
+    ),
+  );
+
   Widget _appearanceCard() {
     final theme = AppThemeController.instance;
     return ListenableBuilder(
@@ -279,6 +353,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _sectionTitle('APARIENCIA'),
           const SizedBox(height: 8),
           _appearanceCard(),
+          const SizedBox(height: 16),
+          _sectionTitle('WIDGETS'),
+          const SizedBox(height: 8),
+          _widgetCard(),
           const SizedBox(height: 16),
           _sectionTitle('AJUSTES DE SONIDO'),
           const SizedBox(height: 8),

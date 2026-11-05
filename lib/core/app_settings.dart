@@ -58,6 +58,18 @@ class AppSettings {
 
   Future<void> setFadeSeconds(int value) => _box.put('fade_seconds', value);
 
+  /// Fondo de los widgets: 'dark' | 'light' | 'accent' | 'artwork'.
+  String get widgetStyle =>
+      (_box.get('widget_style') as String?) ?? 'dark';
+
+  Future<void> setWidgetStyle(String value) => _box.put('widget_style', value);
+
+  /// Opacidad del fondo de los widgets, de 0 a 100.
+  int get widgetOpacity => (_box.get('widget_opacity') as num?)?.toInt() ?? 90;
+
+  Future<void> setWidgetOpacity(int value) =>
+      _box.put('widget_opacity', value.clamp(0, 100));
+
   /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
   bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
 
