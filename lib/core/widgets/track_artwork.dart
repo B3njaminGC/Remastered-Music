@@ -3,8 +3,6 @@ import 'dart:io';
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:on_audio_query_pluse/on_audio_query.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 Uint8List? _readLocalArtwork(String path) {
   try {
@@ -13,31 +11,6 @@ Uint8List? _readLocalArtwork(String path) {
     debugPrint('No se pudo leer la miniatura de $path: $error');
     return null;
   }
-}
-
-final OnAudioQuery _audioQuery = OnAudioQuery();
-Future<Map<String, int>>? _mediaStoreSongIds;
-
-Future<Map<String, int>> _loadMediaStoreSongIds() async {
-  if (!Platform.isAndroid) return const <String, int>{};
-  try {
-    // No se pide ningún permiso acá (la librería pedía también fotos y
-    // videos): se usa el de audio que la app ya pidió al empezar.
-    if (!await Permission.audio.isGranted &&
-        !await Permission.storage.isGranted) {
-      return const <String, int>{};
-    }
-    final songs = await _audioQuery.querySongs();
-    return {for (final song in songs) song.data.toLowerCase(): song.id};
-  } catch (error) {
-    debugPrint('No se pudo consultar las carátulas del dispositivo: $error');
-    return const <String, int>{};
-  }
-}
-
-Future<int?> _mediaStoreIdFor(String path) async {
-  _mediaStoreSongIds ??= _loadMediaStoreSongIds();
-  return (await _mediaStoreSongIds!)[path.toLowerCase()];
 }
 
 class TrackArtwork extends StatelessWidget {
@@ -107,7 +80,6 @@ class LocalTrackArtwork extends StatefulWidget {
 
 class _LocalTrackArtworkState extends State<LocalTrackArtwork> {
   late Future<Uint8List?> _artwork;
-  late Future<int?> _mediaStoreId;
 
   @override
   void initState() {
@@ -121,38 +93,20 @@ class _LocalTrackArtworkState extends State<LocalTrackArtwork> {
     if (oldWidget.file.path != widget.file.path) _loadArtwork();
   }
 
+  /// Carátula incrustada en el archivo (se lee en un isolate).
   void _loadArtwork() {
     _artwork = compute(_readLocalArtwork, widget.file.path);
-    _mediaStoreId = _mediaStoreIdFor(widget.file.path);
   }
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<int?>(
-      future: _mediaStoreId,
-      builder: (context, idSnapshot) {
-        final id = idSnapshot.data;
-        final fallback = FutureBuilder<Uint8List?>(
-          future: _artwork,
-          builder: (context, artworkSnapshot) => TrackArtwork(
-            size: widget.size,
-            borderRadius: widget.borderRadius,
-            artworkBytes: artworkSnapshot.data,
-          ),
-        );
-        if (id == null) return fallback;
-        return QueryArtworkWidget(
-          id: id,
-          type: ArtworkType.AUDIO,
-          controller: _audioQuery,
-          artworkWidth: widget.size,
-          artworkHeight: widget.size,
-          size: 256,
-          artworkBorder: BorderRadius.circular(widget.borderRadius),
-          nullArtworkWidget: fallback,
-          errorBuilder: (_, _, _) => fallback,
-        );
-      },
+    return FutureBuilder<Uint8List?>(
+      future: _artwork,
+      builder: (context, snapshot) => TrackArtwork(
+        size: widget.size,
+        borderRadius: widget.borderRadius,
+        artworkBytes: snapshot.data,
+      ),
     );
   }
 }
