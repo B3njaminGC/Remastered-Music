@@ -109,7 +109,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
     try {
       final opened = await const MethodChannel(
-        'com.example.play_music_app/audio',
+        'resonar/audio',
       ).invokeMethod<bool>('openEqualizer', {'audioSessionId': audioSessionId});
       if (opened != true) {
         _snack('Este dispositivo no tiene un ecualizador compatible.');
@@ -117,7 +117,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     } on PlatformException catch (error) {
       _snack('No se pudo abrir el ecualizador: ${error.message}');
     } on MissingPluginException {
-      _snack('El ecualizador solo está disponible en Android.');
+      _snack('Este teléfono no trae ecualizador del sistema.');
     }
   }
 

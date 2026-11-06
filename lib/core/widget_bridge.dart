@@ -63,7 +63,9 @@ class WidgetBridge {
         'artist': audio.artistNotifier.value,
         'art': art,
         'playing': playing,
-        'accent': AppThemeController.instance.accent.toARGB32(),
+        // Con signo de 32 bits: si no, Flutter lo manda como entero largo
+        // y Android no lo puede leer como color.
+        'accent': AppThemeController.instance.accent.toARGB32().toSigned(32),
         'style': settings.widgetStyle,
         'opacity': settings.widgetOpacity,
       });

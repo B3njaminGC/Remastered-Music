@@ -213,8 +213,8 @@ KEEP_XML = (
     '    tools:keep="@drawable/audio_service_*,@drawable/ic_notification,'
     '@drawable/ic_heart,@drawable/ic_heart_outline,@mipmap/ic_launcher,'
     '@layout/widget_player,@layout/widget_shortcuts,@drawable/widget_bg,'
-    '@drawable/widget_button_bg,@drawable/widget_button_bg_dark,'
-    '@drawable/ic_widget_*,@xml/widget_*,@string/widget_*" />\n'
+    '@drawable/widget_*,@drawable/ic_widget_*,@xml/widget_*,'
+    '@string/widget_*" />\n'
 )
 
 
@@ -261,6 +261,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.media.audiofx.AudioEffect
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -298,10 +299,37 @@ class MainActivity : AudioServiceActivity() {
                     else -> result.notImplemented()
                 }
             }
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUDIO_CHANNEL)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    "openEqualizer" ->
+                        result.success(
+                            openEqualizer(call.argument<Int>("audioSessionId") ?: 0),
+                        )
+                    else -> result.notImplemented()
+                }
+            }
+    }
+
+    /** Abre el ecualizador del sistema para nuestra sesión de audio. */
+    private fun openEqualizer(sessionId: Int): Boolean {
+        if (sessionId <= 0) return false
+        val intent = Intent(AudioEffect.ACTION_DISPLAY_AUDIO_EFFECT_CONTROL_PANEL)
+            .putExtra(AudioEffect.EXTRA_AUDIO_SESSION, sessionId)
+            .putExtra(AudioEffect.EXTRA_PACKAGE_NAME, packageName)
+            .putExtra(AudioEffect.EXTRA_CONTENT_TYPE, AudioEffect.CONTENT_TYPE_MUSIC)
+        return try {
+            startActivity(intent)
+            true
+        } catch (error: Throwable) {
+            // Hay teléfonos sin ecualizador del sistema.
+            false
+        }
     }
 
     companion object {
         const val CHANNEL = "resonar/widget"
+        const val AUDIO_CHANNEL = "resonar/audio"
         const val EXTRA_ACTION = "resonar_action"
         const val PREFS = "resonar_widget"
         const val DEFAULT_ACCENT = -0xaddd4 // 0xFFFF5722
@@ -877,6 +905,7 @@ WIDGET_INFO = """<?xml version="1.0" encoding="utf-8"?>
     android:initialLayout="@layout/{layout}"
     android:minHeight="{height}dp"
     android:minWidth="250dp"
+    android:previewImage="@drawable/{preview}"
     android:previewLayout="@layout/{layout}"
     android:resizeMode="horizontal|vertical"
     android:targetCellHeight="{cells}"
@@ -963,6 +992,7 @@ def write_widget_resources(package):
                 height="110",
                 cells="2",
                 description="widget_player_description",
+                preview="widget_player_preview",
             )
         )
     with open(os.path.join(xml, "widget_shortcuts_info.xml"), "w", encoding="utf-8") as f:
@@ -972,8 +1002,21 @@ def write_widget_resources(package):
                 height="70",
                 cells="1",
                 description="widget_shortcuts_description",
+                preview="widget_shortcuts_preview",
             )
         )
+    nodpi = os.path.join(main_res, "drawable-nodpi")
+    os.makedirs(nodpi, exist_ok=True)
+    previews = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "widget"
+    )
+    for name in ("widget_player_preview.png", "widget_shortcuts_preview.png"):
+        source = os.path.join(previews, name)
+        if os.path.exists(source):
+            shutil.copyfile(source, os.path.join(nodpi, name))
+        else:
+            print("::warning::Falta la vista previa", name)
+
     values = os.path.join(main_res, "values")
     os.makedirs(values, exist_ok=True)
     with open(os.path.join(values, "widget_strings.xml"), "w", encoding="utf-8") as f:
