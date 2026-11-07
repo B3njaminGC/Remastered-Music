@@ -12,6 +12,7 @@ import '../library/library_repository.dart';
 import '../library/track_index.dart';
 import '../core/widget_bridge.dart';
 import '../theme/theme_controller.dart';
+import 'equalizer_screen.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
@@ -367,8 +368,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               children: [
                 ListTile(
                   leading: Icon(Icons.equalizer, color: context.accent),
-                  title: const Text('Abrir Ecualizador'),
-                  subtitle: const Text('Abrir el ecualizador nativo'),
+                  title: const Text('Ecualizador'),
+                  subtitle: const Text(
+                    'Bandas, curvas listas y refuerzo de volumen.',
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push<void>(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const EqualizerScreen(),
+                    ),
+                  ),
+                ),
+                ListTile(
+                  leading: Icon(Icons.tune, color: context.accent),
+                  title: const Text('Ecualizador del sistema'),
+                  subtitle: const Text(
+                    'El de Android, si tu teléfono trae uno.',
+                  ),
                   trailing: const Icon(Icons.open_in_new),
                   onTap: _openSystemEqualizer,
                 ),

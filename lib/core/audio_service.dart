@@ -12,6 +12,7 @@ import '../library/track_index.dart';
 import '../theme/app_theme.dart';
 import 'app_settings.dart';
 import 'artwork_cache.dart';
+import 'equalizer.dart';
 import 'player_handler.dart';
 
 /// Reproductor de música local (solo archivos del dispositivo).
@@ -43,7 +44,11 @@ class AudioService {
   static const int _artworkWindowAfter = 12;
   static const int _maxConsecutiveErrors = 3;
 
-  final AudioPlayer _player = AudioPlayer();
+  // El ecualizador se engancha al crear el reproductor: no se puede añadir
+  // después.
+  final AudioPlayer _player = AudioPlayer(
+    audioPipeline: EqualizerController.instance.buildPipeline(),
+  );
   final List<File> _queue = [];
   ConcatenatingAudioSource? _source;
   int _currentIndex = 0;
@@ -394,6 +399,8 @@ class AudioService {
 
       _publishCurrent();
       _persistQueue(resetPosition: autoplay);
+      // Las bandas recién existen cuando hay audio cargado.
+      unawaited(EqualizerController.instance.load());
       // No usar `await _player.play()`: ese Future solo termina al pausar o
       // acabar la reproducción.
       if (autoplay) unawaited(_startPlayback());

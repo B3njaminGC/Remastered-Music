@@ -84,6 +84,29 @@ class AppSettings {
   Future<void> setRaiseVolumeOnPlay(bool value) =>
       _box.put('raise_volume_on_play', value);
 
+  /// Ecualizador propio de la app.
+  bool get equalizerEnabled =>
+      _box.get('equalizer_enabled', defaultValue: false) == true;
+
+  Future<void> setEqualizerEnabled(bool value) =>
+      _box.put('equalizer_enabled', value);
+
+  /// Ganancia de cada banda, en decibeles.
+  List<double> get equalizerGains => [
+    for (final value in (_box.get('equalizer_gains') as List? ?? const []))
+      (value as num).toDouble(),
+  ];
+
+  Future<void> setEqualizerGains(List<double> values) =>
+      _box.put('equalizer_gains', values);
+
+  /// Refuerzo de volumen extra, en decibeles (0 = apagado).
+  double get equalizerBoost =>
+      (_box.get('equalizer_boost') as num?)?.toDouble() ?? 0;
+
+  Future<void> setEqualizerBoost(double value) =>
+      _box.put('equalizer_boost', value.clamp(0, 10));
+
   /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
   bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
 
