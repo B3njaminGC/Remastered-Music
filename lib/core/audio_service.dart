@@ -79,6 +79,9 @@ class AudioService {
     null,
   );
   final ValueNotifier<bool> shuffleNotifier = ValueNotifier<bool>(false);
+
+  /// Orden de la cola antes de mezclar, para poder volver a él.
+  List<File>? _orderBeforeShuffle;
   final ValueNotifier<LoopMode> loopNotifier = ValueNotifier<LoopMode>(
     LoopMode.off,
   );
@@ -211,13 +214,11 @@ class AudioService {
   Future<void> _onQueueFinished() async {
     try {
       if (shuffleNotifier.value && _queue.length > 1) {
-        await _player.shuffle();
-        final indices = _player.shuffleIndices;
-        final first = (indices != null && indices.isNotEmpty)
-            ? indices.first
-            : 0;
-        await _player.seek(Duration.zero, index: first);
-        await _startPlayback();
+        // Vuelta completa: recién acá se baraja de nuevo.
+        await setPlaylistAndPlay(
+          List<File>.of(_queue)..shuffle(math.Random()),
+          0,
+        );
         return;
       }
       await _player.pause();
@@ -406,12 +407,14 @@ class AudioService {
     }
   }
 
-  /// Reproduce [files] en orden aleatorio.
+  /// Reproduce [files] en orden aleatorio. La cola se baraja una sola vez y
+  /// después queda fija: lo que ves en la cola es lo que va a sonar.
   Future<void> playShuffled(List<File> files) async {
     if (files.isEmpty) return;
-    await _player.setShuffleModeEnabled(true);
+    await _player.setShuffleModeEnabled(false);
     shuffleNotifier.value = true;
-    await setPlaylistAndPlay(files, math.Random().nextInt(files.length));
+    _orderBeforeShuffle = List<File>.of(files);
+    await setPlaylistAndPlay(List<File>.of(files)..shuffle(math.Random()), 0);
   }
 
   /// Pone [file] justo después de la pista actual.
@@ -566,10 +569,55 @@ class AudioService {
     }
   }
 
+  /// Mezcla (o desmezcla) la cola una sola vez. No se usa el modo aleatorio
+  /// del reproductor, que elegía una pista al azar en cada salto y por eso
+  /// había canciones que no sonaban nunca.
   Future<void> toggleShuffle() async {
     final enabled = !shuffleNotifier.value;
-    await _player.setShuffleModeEnabled(enabled);
     shuffleNotifier.value = enabled;
+    await _player.setShuffleModeEnabled(false);
+    if (_queue.length < 2) {
+      if (!enabled) _orderBeforeShuffle = null;
+      return;
+    }
+    final current = _currentIndex >= 0 && _currentIndex < _queue.length
+        ? _queue[_currentIndex]
+        : null;
+    final List<File> next;
+    if (enabled) {
+      _orderBeforeShuffle = List<File>.of(_queue);
+      next = List<File>.of(_queue)..shuffle(math.Random());
+      if (current != null) {
+        // La que está sonando queda primera para no cortarla.
+        next.removeWhere((file) => file.path == current.path);
+        next.insert(0, current);
+      }
+    } else {
+      final previous = _orderBeforeShuffle;
+      _orderBeforeShuffle = null;
+      if (previous == null) {
+        next = List<File>.of(_queue);
+      } else {
+        final paths = {for (final file in _queue) file.path};
+        final known = {for (final file in previous) file.path};
+        next = [
+          for (final file in previous)
+            if (paths.contains(file.path)) file,
+          // Lo que se agregó mientras estaba el aleatorio va al final.
+          for (final file in _queue)
+            if (!known.contains(file.path)) file,
+        ];
+      }
+    }
+    final index = current == null
+        ? 0
+        : next.indexWhere((file) => file.path == current.path);
+    await setPlaylistAndPlay(
+      next,
+      index < 0 ? 0 : index,
+      position: _player.position,
+      autoplay: _player.playing,
+    );
   }
 
   Future<void> toggleLoop() async {
