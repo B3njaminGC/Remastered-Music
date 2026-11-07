@@ -105,6 +105,7 @@ class AudioService {
         player: _player,
         onNext: playNext,
         onPrevious: playPrevious,
+        onStop: clearQueue,
         currentPath: () => currentFile?.path,
       ),
       config: media.AudioServiceConfig(

@@ -15,10 +15,12 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
     required AudioPlayer player,
     required Future<void> Function() onNext,
     required Future<void> Function() onPrevious,
+    required Future<void> Function() onStop,
     required String? Function() currentPath,
   }) : _player = player,
        _onNext = onNext,
        _onPrevious = onPrevious,
+       _onStop = onStop,
        _currentPath = currentPath {
     _player.playbackEventStream.listen(
       (_) => _broadcast(),
@@ -34,6 +36,7 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   final AudioPlayer _player;
   final Future<void> Function() _onNext;
   final Future<void> Function() _onPrevious;
+  final Future<void> Function() _onStop;
   final String? Function() _currentPath;
 
   static const String _toggleFavorite = 'toggleFavorite';
@@ -61,7 +64,12 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
     return path != null && FavoritesRepository.instance.isFavorite(path);
   }
 
+  bool _stopping = false;
+
   void _broadcast() {
+    // Mientras se detiene, no se vuelve a publicar nada: si no, los avisos
+    // del reproductor reviven la notificación recién cerrada.
+    if (_stopping) return;
     final playing = _player.playing;
     final favorite = _isFavorite;
     playbackState.add(
@@ -119,10 +127,24 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> skipToPrevious() => _onPrevious();
 
+  /// Botón ■ de la notificación: corta la reproducción, vacía la cola y
+  /// saca la notificación (la app deja de correr en segundo plano).
   @override
   Future<void> stop() async {
-    await _player.stop();
-    _broadcast();
+    _stopping = true;
+    try {
+      await _onStop();
+    } finally {
+      mediaItem.add(null);
+      playbackState.add(
+        PlaybackState(
+          processingState: AudioProcessingState.idle,
+          playing: false,
+        ),
+      );
+      _stopping = false;
+    }
+    await super.stop();
   }
 
   @override
