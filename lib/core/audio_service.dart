@@ -577,13 +577,18 @@ class AudioService {
     }
   }
 
+  /// Pasados los primeros segundos, "anterior" reinicia la canción; dentro
+  /// de ese rato, recién ahí salta a la pista de antes.
+  static const Duration _restartWindow = Duration(seconds: 5);
+
   Future<void> playPrevious() async {
     final length = _player.sequence?.length ?? 0;
-    if (length > 1) {
-      await _player.seekToPrevious();
-    } else if (length == 1) {
+    if (length == 0) return;
+    if (length == 1 || _player.position > _restartWindow) {
       await _player.seek(Duration.zero);
+      return;
     }
+    await _player.seekToPrevious();
   }
 
   /// Mezcla (o desmezcla) la cola una sola vez. No se usa el modo aleatorio
