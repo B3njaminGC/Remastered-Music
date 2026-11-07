@@ -536,33 +536,80 @@ internal fun backgroundBitmap(
         val paint = Paint(Paint.ANTI_ALIAS_FLAG)
         val target = RectF(0f, 0f, width.toFloat(), height.toFloat())
         val art = if (style.useArtwork) decodeScaled(artPath, maxOf(width, height)) else null
-        paint.color = if (art != null) Color.BLACK else style.background
-        paint.alpha = style.alpha
-        canvas.drawRoundRect(target, radius, radius, paint)
-        if (art != null) {
-            paint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
-            // Recorte central que llene el widget sin deformar la imagen.
-            val scale = maxOf(width.toFloat() / art.width, height.toFloat() / art.height)
-            val cropWidth = (width / scale).toInt().coerceAtMost(art.width)
-            val cropHeight = (height / scale).toInt().coerceAtMost(art.height)
-            val src = Rect(
+
+        if (art == null) {
+            paint.color = style.background
+            paint.alpha = style.alpha
+            canvas.drawRoundRect(target, radius, radius, paint)
+            return output
+        }
+
+        // La carátula y su velo se componen opacos en una capa aparte: así el
+        // texto se sigue leyendo aunque el widget esté muy transparente.
+        val layer = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+        val layerCanvas = Canvas(layer)
+        val layerPaint = Paint(Paint.ANTI_ALIAS_FLAG)
+        layerPaint.color = Color.BLACK
+        layerCanvas.drawRoundRect(target, radius, radius, layerPaint)
+        layerPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_IN)
+        val scale = maxOf(width.toFloat() / art.width, height.toFloat() / art.height)
+        val cropWidth = (width / scale).toInt().coerceIn(1, art.width)
+        val cropHeight = (height / scale).toInt().coerceIn(1, art.height)
+        layerCanvas.drawBitmap(
+            art,
+            Rect(
                 (art.width - cropWidth) / 2,
                 (art.height - cropHeight) / 2,
                 (art.width + cropWidth) / 2,
                 (art.height + cropHeight) / 2,
-            )
-            canvas.drawBitmap(art, src, target, paint)
-            paint.xfermode = null
-            // Velo oscuro para que el texto se lea sobre cualquier portada.
-            paint.color = Color.BLACK
-            paint.alpha = (style.alpha * 0.45f).toInt().coerceIn(0, 255)
-            canvas.drawRoundRect(target, radius, radius, paint)
-        }
+            ),
+            target,
+            layerPaint,
+        )
+        layerPaint.xfermode = PorterDuffXfermode(PorterDuff.Mode.SRC_ATOP)
+        layerPaint.color = Color.BLACK
+        layerPaint.alpha = 140
+        layerCanvas.drawRoundRect(target, radius, radius, layerPaint)
+
+        paint.alpha = style.alpha
+        canvas.drawBitmap(layer, 0f, 0f, paint)
         output
     } catch (error: Throwable) {
         Log.w(TAG, "No se pudo dibujar el fondo del widget", error)
         null
     }
+}
+
+/** Carátula redondeada; si no hay, un recuadro con una nota del color de acento. */
+internal fun artworkTile(path: String?, size: Int, accent: Int): Bitmap {
+    roundedArt(path, size)?.let { return it }
+    val output = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+    val canvas = Canvas(output)
+    val paint = Paint(Paint.ANTI_ALIAS_FLAG)
+    paint.color = Color.argb(46, 255, 255, 255)
+    canvas.drawRoundRect(
+        RectF(0f, 0f, size.toFloat(), size.toFloat()),
+        size * 0.18f,
+        size * 0.18f,
+        paint,
+    )
+    // Nota musical sencilla, centrada.
+    paint.color = accent
+    val stem = size * 0.07f
+    val right = size * 0.62f
+    canvas.drawRect(right - stem, size * 0.26f, right, size * 0.66f, paint)
+    canvas.drawPath(
+        android.graphics.Path().apply {
+            moveTo(right, size * 0.26f)
+            lineTo(size * 0.76f, size * 0.33f)
+            lineTo(size * 0.76f, size * 0.45f)
+            lineTo(right, size * 0.38f)
+            close()
+        },
+        paint,
+    )
+    canvas.drawCircle(right - stem - size * 0.09f, size * 0.68f, size * 0.12f, paint)
+    return output
 }
 
 /** Widget grande: carátula, título, artista y controles. */
@@ -609,13 +656,10 @@ class PlayerWidget : AppWidgetProvider() {
         views.setTextColor(R.id.widget_title, style.onColor)
         views.setTextColor(R.id.widget_artist, style.onColor)
 
-        val art = roundedArt(artPath, 160)
-        if (art != null) {
-            views.setImageViewBitmap(R.id.widget_art, art)
-        } else {
-            views.setImageViewResource(R.id.widget_art, R.drawable.ic_widget_note)
-            views.setInt(R.id.widget_art, "setColorFilter", accent)
-        }
+        views.setImageViewBitmap(R.id.widget_art, artworkTile(artPath, 180, accent))
+        // Los lanzadores reciclan la vista: si no se vuelve a mandar el filtro,
+        // queda el de la vez anterior y tiñe la carátula de un color sólido.
+        views.setInt(R.id.widget_art, "setColorFilter", 0)
         views.setImageViewResource(
             R.id.widget_play,
             if (prefs.getBoolean("playing", false)) {
@@ -779,20 +823,22 @@ WIDGET_LAYOUT_PLAYER = """<?xml version="1.0" encoding="utf-8"?>
         android:layout_height="match_parent"
         android:gravity="center_vertical"
         android:orientation="horizontal"
-        android:padding="12dp">
+        android:padding="14dp">
 
         <ImageView
             android:id="@+id/widget_art"
-            android:layout_width="72dp"
-            android:layout_height="72dp"
+            android:layout_width="60dp"
+            android:layout_height="60dp"
+            android:adjustViewBounds="true"
             android:contentDescription="Carátula"
-            android:scaleType="centerCrop"
-            android:src="@drawable/ic_widget_note" />
+            android:scaleType="fitCenter"
+            android:src="@drawable/widget_bg" />
 
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_marginStart="12dp"
+            android:layout_marginEnd="8dp"
+            android:layout_marginStart="14dp"
             android:layout_weight="1"
             android:orientation="vertical">
 
@@ -812,47 +858,41 @@ WIDGET_LAYOUT_PLAYER = """<?xml version="1.0" encoding="utf-8"?>
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:ellipsize="end"
+                android:layout_marginTop="2dp"
                 android:maxLines="1"
                 android:text="Tocá para elegir música"
                 android:textColor="#B3FFFFFF"
                 android:textSize="12sp" />
-
-            <LinearLayout
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:orientation="horizontal">
-
-                <ImageView
-                    android:id="@+id/widget_prev"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:background="@drawable/widget_button_bg"
-                    android:contentDescription="Anterior"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_widget_prev" />
-
-                <ImageView
-                    android:id="@+id/widget_play"
-                    android:layout_width="44dp"
-                    android:layout_height="44dp"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/widget_button_bg"
-                    android:contentDescription="Reproducir o pausar"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_widget_play" />
-
-                <ImageView
-                    android:id="@+id/widget_next"
-                    android:layout_width="40dp"
-                    android:layout_height="40dp"
-                    android:layout_marginStart="8dp"
-                    android:background="@drawable/widget_button_bg"
-                    android:contentDescription="Siguiente"
-                    android:padding="8dp"
-                    android:src="@drawable/ic_widget_next" />
-            </LinearLayout>
         </LinearLayout>
+
+        <ImageView
+            android:id="@+id/widget_prev"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:background="@drawable/widget_button_bg"
+            android:contentDescription="Anterior"
+            android:padding="9dp"
+            android:src="@drawable/ic_widget_prev" />
+
+        <ImageView
+            android:id="@+id/widget_play"
+            android:layout_width="46dp"
+            android:layout_height="46dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_button_bg"
+            android:contentDescription="Reproducir o pausar"
+            android:padding="10dp"
+            android:src="@drawable/ic_widget_play" />
+
+        <ImageView
+            android:id="@+id/widget_next"
+            android:layout_width="38dp"
+            android:layout_height="38dp"
+            android:layout_marginStart="8dp"
+            android:background="@drawable/widget_button_bg"
+            android:contentDescription="Siguiente"
+            android:padding="9dp"
+            android:src="@drawable/ic_widget_next" />
     </LinearLayout>
 </FrameLayout>
 """

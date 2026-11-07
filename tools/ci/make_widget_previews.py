@@ -73,33 +73,40 @@ def panel(draw, width, height, radius):
     draw.rounded_rectangle([0, 0, width - 1, height - 1], radius=radius, fill=PANEL)
 
 
-def player_preview(width=320, height=140):
+def player_preview(width=320, height=120):
+    """Carátula, dos líneas de texto y los tres botones a la derecha."""
     image = Image.new("RGBA", (width * SS, height * SS), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
     w, h = width * SS, height * SS
     panel(draw, w, h, 22 * SS)
 
     pad = 14 * SS
-    art = h - pad * 2
-    draw.rounded_rectangle([pad, pad, pad + art, pad + art], radius=art * 0.18, fill=SOFT)
-    note(draw, (pad + art * 0.18, pad + art * 0.18, art * 0.64), ACCENT)
+    art = 60 * SS
+    top = (h - art) / 2
+    draw.rounded_rectangle([pad, top, pad + art, top + art], radius=art * 0.18, fill=SOFT)
+    note(draw, (pad + art * 0.18, top + art * 0.18, art * 0.64), ACCENT)
 
-    left = pad + art + 12 * SS
-    draw.rounded_rectangle(
-        [left, pad + 6 * SS, left + 98 * SS, pad + 18 * SS], radius=6 * SS, fill=TEXT
-    )
-    draw.rounded_rectangle(
-        [left, pad + 26 * SS, left + 70 * SS, pad + 35 * SS], radius=5 * SS, fill=DIM
-    )
-
-    cy = pad + art - 16 * SS
     radius = 19 * SS
-    circle(draw, left + radius, cy, radius, SOFT)
-    skip(draw, left + radius, cy, radius * 0.7, TEXT, forward=False)
-    cx2 = left + radius * 3 + 8 * SS
-    circle(draw, cx2, cy, radius * 1.1, SOFT)
+    buttons = radius * 2 + 8 * SS + radius * 2.3 + 8 * SS + radius * 2
+    left = pad + art + 14 * SS
+    text_right = w - pad - buttons - 10 * SS
+    cy = h / 2
+    draw.rounded_rectangle(
+        [left, cy - 17 * SS, min(left + 96 * SS, text_right), cy - 5 * SS],
+        radius=6 * SS, fill=TEXT,
+    )
+    draw.rounded_rectangle(
+        [left, cy + 2 * SS, min(left + 68 * SS, text_right), cy + 11 * SS],
+        radius=5 * SS, fill=DIM,
+    )
+
+    cx1 = w - pad - radius * 5.3 - 16 * SS
+    circle(draw, cx1, cy, radius, SOFT)
+    skip(draw, cx1, cy, radius * 0.7, TEXT, forward=False)
+    cx2 = cx1 + radius + 8 * SS + radius * 1.15
+    circle(draw, cx2, cy, radius * 1.15, SOFT)
     triangle(draw, cx2, cy, radius * 0.95, ACCENT)
-    cx3 = cx2 + radius * 2.3 + 8 * SS
+    cx3 = cx2 + radius * 1.15 + 8 * SS + radius
     circle(draw, cx3, cy, radius, SOFT)
     skip(draw, cx3, cy, radius * 0.7, TEXT, forward=True)
     return image.resize((width, height), Image.LANCZOS)
