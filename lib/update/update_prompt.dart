@@ -14,7 +14,9 @@ Future<void> checkForUpdateOnLaunch(BuildContext context) async {
   final settings = AppSettings.instance;
   if (!settings.checkUpdates) return;
   final now = DateTime.now().millisecondsSinceEpoch;
-  const minGap = 6 * 60 * 60 * 1000;
+  // Se mira casi en cada arranque: es una consulta chica y la gracia es
+  // enterarse al abrir la app, no seis horas después.
+  const minGap = 15 * 60 * 1000;
   final installed = UpdateChecker.installedBuild;
   // Si se acaba de instalar una versión nueva, se mira igual: si no, tras
   // actualizar había que esperar seis horas para enterarse de la siguiente.
