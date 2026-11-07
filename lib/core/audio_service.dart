@@ -536,6 +536,18 @@ class AudioService {
     }
   }
 
+  /// Escucha el aviso de Android de que el volumen quedó en cero y pausa.
+  void startVolumeWatch() {
+    if (!Platform.isAndroid) return;
+    const MethodChannel('resonar/audio').setMethodCallHandler((call) async {
+      if (call.method != 'musicVolumeZero') return null;
+      if (AppSettings.instance.pauseOnZeroVolume && _player.playing) {
+        await _player.pause();
+      }
+      return null;
+    });
+  }
+
   Future<void> _startPlayback() async {
     unawaited(_raiseVolumeIfMuted());
     try {

@@ -59,6 +59,7 @@ Future<void> main() async {
   PlayStats.instance.attach(AudioService());
   AudioService().startFade();
   AudioService().startEndWatchdog();
+  AudioService().startVolumeWatch();
   WidgetBridge.attach(AudioService());
 
   final prefs = await SharedPreferences.getInstance();

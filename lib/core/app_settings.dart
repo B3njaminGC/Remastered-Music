@@ -77,6 +77,13 @@ class AppSettings {
   Future<void> setSwapHeadsetButtons(bool value) =>
       _box.put('swap_headset_buttons', value);
 
+  /// Pausar cuando el volumen de multimedia llega a cero.
+  bool get pauseOnZeroVolume =>
+      _box.get('pause_on_zero_volume', defaultValue: true) == true;
+
+  Future<void> setPauseOnZeroVolume(bool value) =>
+      _box.put('pause_on_zero_volume', value);
+
   /// Al darle a reproducir con el volumen en cero, subirlo una rayita.
   bool get raiseVolumeOnPlay =>
       _box.get('raise_volume_on_play', defaultValue: true) == true;

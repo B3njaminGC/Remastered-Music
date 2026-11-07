@@ -37,6 +37,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _widgetStyle = _settings.widgetStyle;
   late double _widgetOpacity = _settings.widgetOpacity.toDouble();
   late bool _swapHeadset = _settings.swapHeadsetButtons;
+  late bool _pauseOnZero = _settings.pauseOnZeroVolume;
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
   late int _fadeSeconds = _settings.fadeSeconds;
   late bool _dynamicColors = _settings.dynamicColors;
@@ -422,6 +423,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   },
                 ),
                 SwitchListTile(
+                  secondary: Icon(Icons.volume_off, color: context.accent),
+                  title: const Text('Pausar con el volumen en cero'),
+                  subtitle: const Text(
+                    'Si bajás el volumen del todo, la música se pausa.',
+                  ),
+                  value: _pauseOnZero,
+                  onChanged: (value) {
+                    _settings.setPauseOnZeroVolume(value);
+                    setState(() => _pauseOnZero = value);
+                  },
+                ),
+                SwitchListTile(
                   secondary: Icon(Icons.volume_up, color: context.accent),
                   title: const Text('Subir el volumen al reproducir'),
                   subtitle: const Text(
@@ -499,6 +512,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
             ),
           ),
           const Divider(height: 40),
+          _sectionTitle('ACERCA DE'),
+          const SizedBox(height: 8),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.info_outline, color: context.accent),
+              title: const Text('Resonar'),
+              subtitle: Text(
+                UpdateChecker.installedBuild > 0
+                    ? 'Versión 1.2.0 · build ${UpdateChecker.installedBuild}'
+                    : 'Versión 1.2.0 · compilación propia',
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
           _sectionTitle('ACTUALIZACIONES'),
           const SizedBox(height: 8),
           Card(

@@ -27,6 +27,7 @@ PERMISSIONS = [
     ("android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK", ""),
     ("android.permission.POST_NOTIFICATIONS", ""),
     ("android.permission.REQUEST_INSTALL_PACKAGES", ""),
+    ("android.permission.MODIFY_AUDIO_SETTINGS", ""),
 ]
 
 UNUSED_PERMISSIONS = [
@@ -260,9 +261,13 @@ import android.appwidget.AppWidgetManager
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.os.Bundle
+import android.database.ContentObserver
 import android.media.AudioManager
 import android.media.audiofx.AudioEffect
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.provider.Settings
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -270,10 +275,46 @@ import io.flutter.plugin.common.MethodChannel
 /** Actividad principal: audio en segundo plano + puente con los widgets. */
 class MainActivity : AudioServiceActivity() {
     private var pendingAction: String? = null
+    private var audioChannel: MethodChannel? = null
+
+    /** Avisa a la app cuando el volumen de multimedia queda en cero. */
+    private val volumeObserver = object : ContentObserver(
+        Handler(Looper.getMainLooper()),
+    ) {
+        override fun onChange(selfChange: Boolean) {
+            try {
+                val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+                if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) == 0) {
+                    audioChannel?.invokeMethod("musicVolumeZero", null)
+                }
+            } catch (error: Throwable) {
+                // El volumen no es asunto crítico: si falla, no pasa nada.
+            }
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         pendingAction = intent?.getStringExtra(EXTRA_ACTION)
+        try {
+            contentResolver.registerContentObserver(
+                Settings.System.CONTENT_URI,
+                true,
+                volumeObserver,
+            )
+        } catch (error: Throwable) {
+            // Hay teléfonos que no dejan escuchar estos cambios.
+        }
+    }
+
+    override fun onDestroy() {
+        try {
+            contentResolver.unregisterContentObserver(volumeObserver)
+        } catch (error: Throwable) {
+            // Ya estaba dado de baja.
+        }
+        audioChannel = null
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -300,8 +341,12 @@ class MainActivity : AudioServiceActivity() {
                     else -> result.notImplemented()
                 }
             }
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, AUDIO_CHANNEL)
-            .setMethodCallHandler { call, result ->
+        val audio = MethodChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            AUDIO_CHANNEL,
+        )
+        audioChannel = audio
+        audio.setMethodCallHandler { call, result ->
                 when (call.method) {
                     "openEqualizer" ->
                         result.success(
@@ -310,7 +355,7 @@ class MainActivity : AudioServiceActivity() {
                     "raiseVolumeIfMuted" -> result.success(raiseVolumeIfMuted())
                     else -> result.notImplemented()
                 }
-            }
+        }
     }
 
     /**
