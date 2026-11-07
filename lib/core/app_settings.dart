@@ -130,6 +130,14 @@ class AppSettings {
   Future<void> setLastUpdateCheck(int ms) => _box.put('last_update_check', ms);
 
   /// Build que la persona eligió omitir ("Omitir esta").
+  /// Compilación instalada la última vez que se buscaron novedades: si
+  /// cambió, hay que volver a mirar aunque no hayan pasado las 6 horas.
+  int get lastCheckedFromBuild =>
+      (_box.get('last_checked_from_build') as num?)?.toInt() ?? -1;
+
+  Future<void> setLastCheckedFromBuild(int value) =>
+      _box.put('last_checked_from_build', value);
+
   int get skippedBuild => (_box.get('skipped_build') as num?)?.toInt() ?? 0;
 
   Future<void> setSkippedBuild(int build) => _box.put('skipped_build', build);

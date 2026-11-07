@@ -15,10 +15,17 @@ Future<void> checkForUpdateOnLaunch(BuildContext context) async {
   if (!settings.checkUpdates) return;
   final now = DateTime.now().millisecondsSinceEpoch;
   const minGap = 6 * 60 * 60 * 1000;
-  if (now - settings.lastUpdateCheckMs < minGap) return;
+  final installed = UpdateChecker.installedBuild;
+  // Si se acaba de instalar una versión nueva, se mira igual: si no, tras
+  // actualizar había que esperar seis horas para enterarse de la siguiente.
+  final justUpdated = installed != settings.lastCheckedFromBuild;
+  if (!justUpdated && now - settings.lastUpdateCheckMs < minGap) return;
   try {
     final update = await UpdateChecker.instance.check();
     await settings.setLastUpdateCheck(now);
+    await settings.setLastCheckedFromBuild(installed);
+    // La versión omitida deja de estarlo una vez que quedó vieja.
+    if (settings.skippedBuild <= installed) await settings.setSkippedBuild(0);
     if (update == null || update.build == settings.skippedBuild) return;
     if (!context.mounted) return;
     await showUpdateDialog(context, update);

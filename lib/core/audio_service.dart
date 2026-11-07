@@ -239,6 +239,7 @@ class AudioService {
     try {
       final session = await AudioSession.instance;
       await session.configure(const AudioSessionConfiguration.music());
+      await _becomingNoisySubscription?.cancel();
       _becomingNoisySubscription = session.becomingNoisyEventStream.listen((_) {
         if (_pauseWhenHeadphonesDisconnected && _player.playing) {
           unawaited(_player.pause());
