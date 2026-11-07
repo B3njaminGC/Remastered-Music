@@ -378,7 +378,7 @@ class _SongMenu extends StatelessWidget {
                   : 'Quitada de favoritas.',
             );
           case 'genre':
-            await showSongGenreDialog(context, info);
+            await showSongGenreDialog(context, info.file);
           case 'top':
             await onMove(true);
           case 'bottom':
