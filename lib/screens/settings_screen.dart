@@ -12,6 +12,7 @@ import '../library/library_repository.dart';
 import '../library/track_index.dart';
 import '../core/widget_bridge.dart';
 import '../theme/theme_controller.dart';
+import 'changelog_screen.dart';
 import 'equalizer_screen.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
@@ -516,12 +517,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Card(
             child: ListTile(
-              leading: Icon(Icons.info_outline, color: context.accent),
-              title: const Text('Resonar'),
+              leading: Icon(Icons.lightbulb_outline, color: context.accent),
+              title: const Text('Qué hay de nuevo'),
               subtitle: Text(
                 UpdateChecker.installedBuild > 0
-                    ? 'Versión 1.2.0 · build ${UpdateChecker.installedBuild}'
-                    : 'Versión 1.2.0 · compilación propia',
+                    ? 'Versión 1.3.0 · build ${UpdateChecker.installedBuild}'
+                    : 'Versión 1.3.0 · compilación propia',
+              ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.of(context).push<void>(
+                MaterialPageRoute<void>(
+                  builder: (_) => ChangelogScreen(
+                    highlightBuild: UpdateChecker.installedBuild,
+                  ),
+                ),
               ),
             ),
           ),

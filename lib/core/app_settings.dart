@@ -77,6 +77,13 @@ class AppSettings {
   Future<void> setSwapHeadsetButtons(bool value) =>
       _box.put('swap_headset_buttons', value);
 
+  /// Última versión cuyas novedades ya se mostraron.
+  int get lastSeenChangelogBuild =>
+      (_box.get('last_seen_changelog') as num?)?.toInt() ?? 0;
+
+  Future<void> setLastSeenChangelogBuild(int value) =>
+      _box.put('last_seen_changelog', value);
+
   /// Pausar cuando el volumen de multimedia llega a cero.
   bool get pauseOnZeroVolume =>
       _box.get('pause_on_zero_volume', defaultValue: true) == true;

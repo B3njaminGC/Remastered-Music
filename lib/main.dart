@@ -22,6 +22,7 @@ import 'library/track_index.dart';
 import 'lyrics/lyrics_service.dart';
 import 'screens/now_playing_screen.dart';
 import 'screens/onboarding_screen.dart';
+import 'screens/changelog_screen.dart';
 import 'screens/settings_screen.dart';
 import 'screens/support_screen.dart';
 import 'theme/accent.dart';
@@ -179,6 +180,8 @@ class _MainContainerState extends State<MainContainer>
     await _runWidgetAction();
     await _askNotificationPermission();
     if (!mounted) return;
+    await ChangelogScreen.showIfJustUpdated(context);
+    if (!mounted) return;
     await checkForUpdateOnLaunch(context);
   }
 
@@ -268,7 +271,7 @@ class _MainContainerState extends State<MainContainer>
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                'Versión 1.2.0 • Open Source',
+                'Versión 1.3.0 • Open Source',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
                   fontSize: 13,
