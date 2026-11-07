@@ -43,6 +43,15 @@ class TrackSelection extends ChangeNotifier {
   ];
 }
 
+/// Acción extra para la barra de selección, propia de cada pantalla
+/// (por ejemplo "Quitar de la lista" dentro de una lista de reproducción).
+class SelectionAction {
+  const SelectionAction({required this.label, required this.onSelected});
+
+  final String label;
+  final Future<void> Function(List<TrackInfo> tracks) onSelected;
+}
+
 /// Envuelve una lista de canciones con selección múltiple: mantener apretado
 /// una canción empieza la selección; después tocar marca/desmarca y abajo
 /// aparece la barra de acciones. "Atrás" cancela la selección.
@@ -54,11 +63,15 @@ class TrackSelectionScope extends StatefulWidget {
     super.key,
     required this.tracks,
     required this.builder,
+    this.extraActions = const [],
   });
 
   final List<TrackInfo> tracks;
   final Widget Function(BuildContext context, TrackSelection selection)
   builder;
+
+  /// Opciones propias de la pantalla, al final del menú "Más opciones".
+  final List<SelectionAction> extraActions;
 
   @override
   State<TrackSelectionScope> createState() => _TrackSelectionScopeState();
@@ -87,7 +100,11 @@ class _TrackSelectionScopeState extends State<TrackSelectionScope> {
             children: [
               Expanded(child: widget.builder(context, _selection)),
               if (_selection.active)
-                _SelectionBar(selection: _selection, tracks: widget.tracks),
+                _SelectionBar(
+                  selection: _selection,
+                  tracks: widget.tracks,
+                  extraActions: widget.extraActions,
+                ),
             ],
           ),
         );
@@ -99,10 +116,15 @@ class _TrackSelectionScopeState extends State<TrackSelectionScope> {
 enum _More { playNext, shuffle, favorite, genre, selectAll }
 
 class _SelectionBar extends StatelessWidget {
-  const _SelectionBar({required this.selection, required this.tracks});
+  const _SelectionBar({
+    required this.selection,
+    required this.tracks,
+    required this.extraActions,
+  });
 
   final TrackSelection selection;
   final List<TrackInfo> tracks;
+  final List<SelectionAction> extraActions;
 
   List<File> _files() => [
     for (final track in selection.pick(tracks)) track.file,
@@ -143,7 +165,14 @@ class _SelectionBar extends StatelessWidget {
       selection.clear();
     }
 
-    Future<void> onMore(_More action) async {
+    Future<void> onMore(Object choice) async {
+      if (choice is SelectionAction) {
+        final picked = selection.pick(tracks);
+        selection.clear();
+        await choice.onSelected(picked);
+        return;
+      }
+      final action = choice as _More;
       final files = _files();
       switch (action) {
         case _More.selectAll:
@@ -216,30 +245,35 @@ class _SelectionBar extends StatelessWidget {
                 icon: const Icon(Icons.queue_music),
                 onPressed: addToQueue,
               ),
-              PopupMenuButton<_More>(
+              PopupMenuButton<Object>(
                 tooltip: 'Más opciones',
                 onSelected: onMore,
-                itemBuilder: (context) => const [
-                  PopupMenuItem(
+                itemBuilder: (context) => [
+                  const PopupMenuItem<Object>(
                     value: _More.selectAll,
                     child: Text('Seleccionar todas'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem<Object>(
                     value: _More.playNext,
                     child: Text('Reproducir a continuación'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem<Object>(
                     value: _More.shuffle,
                     child: Text('Reproducir al azar'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem<Object>(
                     value: _More.favorite,
                     child: Text('Añadir a favoritas'),
                   ),
-                  PopupMenuItem(
+                  const PopupMenuItem<Object>(
                     value: _More.genre,
                     child: Text('Cambiar género'),
                   ),
+                  for (final action in extraActions)
+                    PopupMenuItem<Object>(
+                      value: action,
+                      child: Text(action.label),
+                    ),
                 ],
               ),
             ],
