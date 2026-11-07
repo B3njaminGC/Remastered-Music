@@ -261,6 +261,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
+import android.media.AudioManager
 import android.media.audiofx.AudioEffect
 import com.ryanheise.audioservice.AudioServiceActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -306,9 +307,29 @@ class MainActivity : AudioServiceActivity() {
                         result.success(
                             openEqualizer(call.argument<Int>("audioSessionId") ?: 0),
                         )
+                    "raiseVolumeIfMuted" -> result.success(raiseVolumeIfMuted())
                     else -> result.notImplemented()
                 }
             }
+    }
+
+    /**
+     * Si el volumen de multimedia está en cero lo sube una rayita y muestra
+     * la barra del sistema. Devuelve true si hizo falta subirlo.
+     */
+    private fun raiseVolumeIfMuted(): Boolean {
+        return try {
+            val audio = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+            if (audio.getStreamVolume(AudioManager.STREAM_MUSIC) > 0) return false
+            audio.adjustStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                AudioManager.ADJUST_RAISE,
+                AudioManager.FLAG_SHOW_UI,
+            )
+            true
+        } catch (error: Throwable) {
+            false
+        }
     }
 
     /** Abre el ecualizador del sistema para nuestra sesión de audio. */

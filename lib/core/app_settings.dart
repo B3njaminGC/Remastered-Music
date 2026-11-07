@@ -70,6 +70,20 @@ class AppSettings {
   Future<void> setWidgetOpacity(int value) =>
       _box.put('widget_opacity', value.clamp(0, 100));
 
+  /// Los auriculares mandan "siguiente" donde debería ir "anterior".
+  bool get swapHeadsetButtons =>
+      _box.get('swap_headset_buttons', defaultValue: false) == true;
+
+  Future<void> setSwapHeadsetButtons(bool value) =>
+      _box.put('swap_headset_buttons', value);
+
+  /// Al darle a reproducir con el volumen en cero, subirlo una rayita.
+  bool get raiseVolumeOnPlay =>
+      _box.get('raise_volume_on_play', defaultValue: true) == true;
+
+  Future<void> setRaiseVolumeOnPlay(bool value) =>
+      _box.put('raise_volume_on_play', value);
+
   /// Buscar letras en internet (lrclib.net) cuando la canción no las trae.
   bool get lyricsOnline => _box.get('lyrics_online', defaultValue: true) == true;
 

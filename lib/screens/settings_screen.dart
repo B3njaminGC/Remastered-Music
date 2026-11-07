@@ -35,6 +35,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _checkUpdates = _settings.checkUpdates;
   late String _widgetStyle = _settings.widgetStyle;
   late double _widgetOpacity = _settings.widgetOpacity.toDouble();
+  late bool _swapHeadset = _settings.swapHeadsetButtons;
+  late bool _raiseVolume = _settings.raiseVolumeOnPlay;
   late int _fadeSeconds = _settings.fadeSeconds;
   late bool _dynamicColors = _settings.dynamicColors;
   bool _checkingUpdate = false;
@@ -390,6 +392,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ],
                     ),
                   ),
+                ),
+                SwitchListTile(
+                  secondary: Icon(Icons.swap_horiz, color: context.accent),
+                  title: const Text('Invertir botones de los auriculares'),
+                  subtitle: const Text(
+                    'Si al tocar dos veces un lado te manda para el otro.',
+                  ),
+                  value: _swapHeadset,
+                  onChanged: (value) {
+                    _settings.setSwapHeadsetButtons(value);
+                    setState(() => _swapHeadset = value);
+                  },
+                ),
+                SwitchListTile(
+                  secondary: Icon(Icons.volume_up, color: context.accent),
+                  title: const Text('Subir el volumen al reproducir'),
+                  subtitle: const Text(
+                    'Si el volumen está en cero, lo sube una rayita al darle '
+                    'a reproducir.',
+                  ),
+                  value: _raiseVolume,
+                  onChanged: (value) {
+                    _settings.setRaiseVolumeOnPlay(value);
+                    setState(() => _raiseVolume = value);
+                  },
                 ),
                 SwitchListTile(
                   secondary: Icon(

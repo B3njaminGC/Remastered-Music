@@ -1,7 +1,10 @@
 import 'dart:async';
 
 import 'package:audio_service/audio_service.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+
+import 'app_settings.dart';
 
 import '../library/favorites_repository.dart';
 
@@ -10,6 +13,8 @@ import '../library/favorites_repository.dart';
 ///
 /// Muestra carátula, título, artista, barra de progreso y los botones
 /// ♥ favorita · anterior · reproducir/pausa · siguiente · cerrar.
+///
+/// El ■ corta la reproducción, saca la notificación y cierra la app.
 class PlayerHandler extends BaseAudioHandler with SeekHandler {
   PlayerHandler({
     required AudioPlayer player,
@@ -121,6 +126,33 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   @override
   Future<void> seek(Duration position) => _player.seek(position);
 
+  /// Botones del cable o de los auriculares. Algunos modelos mandan
+  /// "siguiente" donde debería ir "anterior": con el ajuste puesto, se
+  /// invierten acá (los de la notificación no se tocan).
+  @override
+  Future<void> click([MediaButton button = MediaButton.media]) async {
+    var pressed = button;
+    if (AppSettings.instance.swapHeadsetButtons) {
+      pressed = switch (button) {
+        MediaButton.next => MediaButton.previous,
+        MediaButton.previous => MediaButton.next,
+        MediaButton.media => MediaButton.media,
+      };
+    }
+    switch (pressed) {
+      case MediaButton.media:
+        if (_player.playing) {
+          await pause();
+        } else {
+          await play();
+        }
+      case MediaButton.next:
+        await skipToNext();
+      case MediaButton.previous:
+        await skipToPrevious();
+    }
+  }
+
   @override
   Future<void> skipToNext() => _onNext();
 
@@ -145,6 +177,8 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
       _stopping = false;
     }
     await super.stop();
+    // Y cierra la app: el ■ es "terminé de escuchar", no "pausa".
+    await SystemNavigator.pop();
   }
 
   @override

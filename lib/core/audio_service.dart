@@ -5,6 +5,7 @@ import 'dart:math' as math;
 import 'package:audio_service/audio_service.dart' as media;
 import 'package:audio_session/audio_session.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
 import '../library/track_index.dart';
@@ -514,7 +515,22 @@ class AudioService {
 
   // ------------------------------------------------------------- control
 
+  /// Si el volumen del teléfono está en cero, lo sube una rayita: si no,
+  /// parece que la app no anda y los botones de volumen terminan cambiando
+  /// el de las llamadas en vez del de la música.
+  Future<void> _raiseVolumeIfMuted() async {
+    if (!Platform.isAndroid || !AppSettings.instance.raiseVolumeOnPlay) return;
+    try {
+      await const MethodChannel(
+        'resonar/audio',
+      ).invokeMethod<bool>('raiseVolumeIfMuted');
+    } catch (error) {
+      debugPrint('No se pudo revisar el volumen: $error');
+    }
+  }
+
   Future<void> _startPlayback() async {
+    unawaited(_raiseVolumeIfMuted());
     try {
       await _player.play();
     } catch (error) {
@@ -547,9 +563,9 @@ class AudioService {
   Future<void> playPause() async {
     if (_player.playing) {
       await _player.pause();
-    } else {
-      await _player.play();
+      return;
     }
+    await _startPlayback();
   }
 
   Future<void> playNext() async {
