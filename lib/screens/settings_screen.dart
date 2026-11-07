@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -14,6 +13,7 @@ import '../core/widget_bridge.dart';
 import '../theme/theme_controller.dart';
 import 'changelog_screen.dart';
 import 'equalizer_screen.dart';
+import 'folders_screen.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
@@ -156,23 +156,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _addFolder({required bool excluded}) async {
-    final folder = await FilePicker.getDirectoryPath();
-    if (folder == null || !mounted) return;
-    await _runScan(
-      () => excluded
-          ? _library.addExcludedFolder(folder)
-          : _library.addIncludedFolder(folder),
-    );
-  }
 
-  Future<void> _removeFolder(String folder, {required bool excluded}) {
-    return _runScan(
-      () => excluded
-          ? _library.removeExcludedFolder(folder)
-          : _library.removeIncludedFolder(folder),
-    );
-  }
+
+
 
   Widget _sectionTitle(String text, {Color? color}) => Text(
     text,
@@ -363,7 +349,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           _widgetCard(),
           const SizedBox(height: 16),
-          _sectionTitle('AJUSTES DE SONIDO'),
+          _sectionTitle('SONIDO'),
           const SizedBox(height: 8),
           Card(
             child: Column(
@@ -380,15 +366,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       builder: (_) => const EqualizerScreen(),
                     ),
                   ),
-                ),
-                ListTile(
-                  leading: Icon(Icons.tune, color: context.accent),
-                  title: const Text('Ecualizador del sistema'),
-                  subtitle: const Text(
-                    'El de Android, si tu teléfono trae uno.',
-                  ),
-                  trailing: const Icon(Icons.open_in_new),
-                  onTap: _openSystemEqualizer,
                 ),
                 ListTile(
                   leading: Icon(Icons.swap_horiz, color: context.accent),
@@ -412,43 +389,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ),
                 SwitchListTile(
-                  secondary: Icon(Icons.swap_horiz, color: context.accent),
-                  title: const Text('Invertir botones de los auriculares'),
-                  subtitle: const Text(
-                    'Si al tocar dos veces un lado te manda para el otro.',
-                  ),
-                  value: _swapHeadset,
-                  onChanged: (value) {
-                    _settings.setSwapHeadsetButtons(value);
-                    setState(() => _swapHeadset = value);
-                  },
-                ),
-                SwitchListTile(
-                  secondary: Icon(Icons.volume_off, color: context.accent),
-                  title: const Text('Pausar con el volumen en cero'),
-                  subtitle: const Text(
-                    'Si bajás el volumen del todo, la música se pausa.',
-                  ),
-                  value: _pauseOnZero,
-                  onChanged: (value) {
-                    _settings.setPauseOnZeroVolume(value);
-                    setState(() => _pauseOnZero = value);
-                  },
-                ),
-                SwitchListTile(
-                  secondary: Icon(Icons.volume_up, color: context.accent),
-                  title: const Text('Subir el volumen al reproducir'),
-                  subtitle: const Text(
-                    'Si el volumen está en cero, lo sube una rayita al darle '
-                    'a reproducir.',
-                  ),
-                  value: _raiseVolume,
-                  onChanged: (value) {
-                    _settings.setRaiseVolumeOnPlay(value);
-                    setState(() => _raiseVolume = value);
-                  },
-                ),
-                SwitchListTile(
                   secondary: Icon(
                     Icons.headphones,
                     color: context.accent,
@@ -461,53 +401,109 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   activeThumbColor: context.accent,
                   onChanged: _setPauseOnHeadphoneDisconnect,
                 ),
-                FutureBuilder<PermissionStatus>(
-                  future: Permission.notification.status,
-                  builder: (context, snapshot) {
-                    final granted = snapshot.data?.isGranted ?? false;
-                    return ListTile(
-                      leading: Icon(
-                        Icons.notifications_active_outlined,
-                        color: context.accent,
-                      ),
-                      title: const Text('Notificación del reproductor'),
-                      subtitle: Text(
-                        granted
-                            ? 'Activada: ves y controlás la canción desde '
-                                  'las notificaciones y la pantalla de bloqueo.'
-                            : 'Desactivada: permitila para ver y controlar la '
-                                  'canción (pausa, siguiente, progreso) desde '
-                                  'las notificaciones.',
-                      ),
-                      trailing: Icon(
-                        granted ? Icons.check_circle : Icons.open_in_new,
-                        color: granted ? Colors.green : null,
-                      ),
-                      onTap: granted
-                          ? null
-                          : () async {
-                              final status = await Permission.notification
-                                  .request();
-                              if (!status.isGranted) await openAppSettings();
-                              if (mounted) setState(() {});
-                            },
-                    );
-                  },
-                ),
-                SwitchListTile(
-                  secondary: Icon(
-                    Icons.lyrics_outlined,
-                    color: context.accent,
-                  ),
-                  title: const Text('Buscar letras en internet'),
+                ExpansionTile(
+                  leading: Icon(Icons.tune, color: context.accent),
+                  title: const Text('Configuración avanzada'),
                   subtitle: const Text(
-                    'Si la canción no trae letra, se busca en lrclib.net '
-                    '(solo se envía título y artista) y se guarda en el '
-                    'dispositivo. Desactivado: 100% offline.',
+                    'Volumen, auriculares, notificación y letras.',
                   ),
-                  value: _lyricsOnline,
-                  activeThumbColor: context.accent,
-                  onChanged: _setLyricsOnline,
+                  childrenPadding: EdgeInsets.zero,
+                  children: [
+                  SwitchListTile(
+                    secondary: Icon(Icons.volume_off, color: context.accent),
+                    title: const Text('Pausar con el volumen en cero'),
+                    subtitle: const Text(
+                      'Si bajás el volumen del todo, la música se pausa.',
+                    ),
+                    value: _pauseOnZero,
+                    onChanged: (value) {
+                      _settings.setPauseOnZeroVolume(value);
+                      setState(() => _pauseOnZero = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: Icon(Icons.volume_up, color: context.accent),
+                    title: const Text('Subir el volumen al reproducir'),
+                    subtitle: const Text(
+                      'Si el volumen está en cero, lo sube una rayita al darle '
+                      'a reproducir.',
+                    ),
+                    value: _raiseVolume,
+                    onChanged: (value) {
+                      _settings.setRaiseVolumeOnPlay(value);
+                      setState(() => _raiseVolume = value);
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: Icon(Icons.swap_horiz, color: context.accent),
+                    title: const Text('Invertir botones de los auriculares'),
+                    subtitle: const Text(
+                      'Si al tocar dos veces un lado te manda para el otro.',
+                    ),
+                    value: _swapHeadset,
+                    onChanged: (value) {
+                      _settings.setSwapHeadsetButtons(value);
+                      setState(() => _swapHeadset = value);
+                    },
+                  ),
+                  FutureBuilder<PermissionStatus>(
+                    future: Permission.notification.status,
+                    builder: (context, snapshot) {
+                      final granted = snapshot.data?.isGranted ?? false;
+                      return ListTile(
+                        leading: Icon(
+                          Icons.notifications_active_outlined,
+                          color: context.accent,
+                        ),
+                        title: const Text('Notificación del reproductor'),
+                        subtitle: Text(
+                          granted
+                              ? 'Activada: ves y controlás la canción desde '
+                                    'las notificaciones y la pantalla de bloqueo.'
+                              : 'Desactivada: permitila para ver y controlar la '
+                                    'canción (pausa, siguiente, progreso) desde '
+                                    'las notificaciones.',
+                        ),
+                        trailing: Icon(
+                          granted ? Icons.check_circle : Icons.open_in_new,
+                          color: granted ? Colors.green : null,
+                        ),
+                        onTap: granted
+                            ? null
+                            : () async {
+                                final status = await Permission.notification
+                                    .request();
+                                if (!status.isGranted) await openAppSettings();
+                                if (mounted) setState(() {});
+                              },
+                      );
+                    },
+                  ),
+                  SwitchListTile(
+                    secondary: Icon(
+                      Icons.lyrics_outlined,
+                      color: context.accent,
+                    ),
+                    title: const Text('Buscar letras en internet'),
+                    subtitle: const Text(
+                      'Si la canción no trae letra, se busca en lrclib.net '
+                      '(solo se envía título y artista) y se guarda en el '
+                      'dispositivo. Desactivado: 100% offline.',
+                    ),
+                    value: _lyricsOnline,
+                    activeThumbColor: context.accent,
+                    onChanged: _setLyricsOnline,
+                  ),
+                  ListTile(
+                    leading: Icon(Icons.tune, color: context.accent),
+                    title: const Text('Ecualizador del sistema'),
+                    subtitle: const Text(
+                      'El de Android, si tu teléfono trae uno.',
+                    ),
+                    trailing: const Icon(Icons.open_in_new),
+                    onTap: _openSystemEqualizer,
+                  ),
+                  ],
                 ),
               ],
             ),
@@ -617,81 +613,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
               ],
             ),
           ),
-          const Divider(height: 40),
-          _sectionTitle('CARPETAS DE MÚSICA'),
-          const SizedBox(height: 8),
-          const Text(
-            'Directorios desde donde la app escanea canciones automáticamente.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
           const SizedBox(height: 12),
-          ..._includedFolders.map(
-            (folder) => Card(
-              child: ListTile(
-                leading: Icon(Icons.folder, color: context.accent),
-                title: Text(
-                  folder,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: IconButton(
-                  icon: const Icon(
-                    Icons.delete_outline,
-                    color: Colors.redAccent,
-                  ),
-                  onPressed: _scanning
-                      ? null
-                      : () => _removeFolder(folder, excluded: false),
-                ),
+          Card(
+            child: ListTile(
+              leading: Icon(Icons.folder_outlined, color: context.accent),
+              title: const Text('Carpetas de música'),
+              subtitle: Text(
+                '${_includedFolders.length} incluidas · '
+                '${_excludedFolders.length} ignoradas',
               ),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () async {
+                await Navigator.of(context).push<void>(
+                  MaterialPageRoute<void>(builder: (_) => const FoldersScreen()),
+                );
+                if (!mounted) return;
+                setState(() {
+                  _includedFolders = _settings.includedFolders;
+                  _excludedFolders = _settings.excludedFolders;
+                });
+              },
             ),
-          ),
-          ElevatedButton.icon(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: context.accent,
-              foregroundColor: Colors.white,
-            ),
-            onPressed: _scanning ? null : () => _addFolder(excluded: false),
-            icon: const Icon(Icons.add),
-            label: const Text('Añadir carpeta de música'),
-          ),
-          const Divider(height: 40),
-          _sectionTitle(
-            'CARPETAS EXCLUIDAS (IGNORADAS)',
-            color: Colors.redAccent,
-          ),
-          const SizedBox(height: 8),
-          const Text(
-            'Las canciones dentro de estas rutas no se incluirán en tu biblioteca.',
-            style: TextStyle(color: Colors.grey, fontSize: 12),
-          ),
-          const SizedBox(height: 12),
-          ..._excludedFolders.map(
-            (folder) => Card(
-              child: ListTile(
-                leading: const Icon(Icons.folder_off, color: Colors.redAccent),
-                title: Text(
-                  folder,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-                trailing: IconButton(
-                  icon: const Icon(Icons.delete_outline, color: Colors.grey),
-                  onPressed: _scanning
-                      ? null
-                      : () => _removeFolder(folder, excluded: true),
-                ),
-              ),
-            ),
-          ),
-          OutlinedButton.icon(
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.redAccent,
-              side: const BorderSide(color: Colors.redAccent),
-            ),
-            onPressed: _scanning ? null : () => _addFolder(excluded: true),
-            icon: const Icon(Icons.block),
-            label: const Text('Añadir carpeta a exclusiones'),
           ),
         ],
       ),

@@ -29,6 +29,16 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 48,
+      title: 'Ajustes más ordenados',
+      news: [
+        'Las carpetas de música y las ignoradas tienen su propia pantalla, '
+            'con pestañas y el nombre de cada carpeta a la vista.',
+        'En Sonido quedan a mano las opciones de siempre; el resto está en '
+            '"Configuración avanzada".',
+      ],
+    ),
+    ChangelogEntry(
       build: 47,
       title: 'Novedades y avisos más seguidos',
       news: [
