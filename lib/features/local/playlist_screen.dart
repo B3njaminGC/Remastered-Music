@@ -269,19 +269,11 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                     child: ListTile(
                       selected: selected,
                       selectedTileColor: context.accent.withValues(alpha: 0.12),
-                      leading: selection.active
-                          ? Icon(
-                              selected
-                                  ? Icons.check_circle
-                                  : Icons.radio_button_unchecked,
-                              color: selected ? context.accent : Colors.grey,
-                              size: 36,
-                            )
-                          : LocalTrackArtwork(
-                              file: file,
-                              size: 48,
-                              borderRadius: 8,
-                            ),
+                      leading: LocalTrackArtwork(
+                        file: file,
+                        size: 48,
+                        borderRadius: 8,
+                      ),
                       title: Text(
                         info.title,
                         maxLines: 1,
@@ -292,30 +284,43 @@ class _PlaylistDetailScreenState extends State<PlaylistDetailScreen> {
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (!selection.active)
-                            _SongMenu(
-                              info: info,
-                              index: index,
-                              total: songs.length,
-                              onPlayNext: () =>
-                                  _audioService.playNextInQueue(file),
-                              onAddToQueue: () => _audioService.addToQueue(file),
-                              onMove: (toTop) =>
-                                  _moveTrack(index, toTop: toTop),
-                              onRemove: () => _removeTrack(file.path),
+                      // Al seleccionar, la tilde ocupa el lugar del asa de
+                      // arrastrar: la carátula queda a la vista para
+                      // reconocer las canciones de un vistazo.
+                      trailing: selection.active
+                          ? Icon(
+                              selected
+                                  ? Icons.check_circle
+                                  : Icons.radio_button_unchecked,
+                              color: selected ? context.accent : Colors.grey,
+                              size: 30,
+                            )
+                          : Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                _SongMenu(
+                                  info: info,
+                                  index: index,
+                                  total: songs.length,
+                                  onPlayNext: () =>
+                                      _audioService.playNextInQueue(file),
+                                  onAddToQueue: () =>
+                                      _audioService.addToQueue(file),
+                                  onMove: (toTop) =>
+                                      _moveTrack(index, toTop: toTop),
+                                  onRemove: () => _removeTrack(file.path),
+                                ),
+                                ReorderableDragStartListener(
+                                  index: index,
+                                  child: const Padding(
+                                    padding: EdgeInsets.symmetric(
+                                      horizontal: 4,
+                                    ),
+                                    child: Icon(Icons.drag_handle),
+                                  ),
+                                ),
+                              ],
                             ),
-                          ReorderableDragStartListener(
-                            index: index,
-                            child: const Padding(
-                              padding: EdgeInsets.symmetric(horizontal: 4),
-                              child: Icon(Icons.drag_handle),
-                            ),
-                          ),
-                        ],
-                      ),
                       onLongPress: () => selection.toggle(file.path),
                       onTap: selection.active
                           ? () => selection.toggle(file.path)

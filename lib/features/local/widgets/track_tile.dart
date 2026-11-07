@@ -37,26 +37,9 @@ class TrackTile extends StatelessWidget {
     return ListTile(
       selected: selected,
       selectedTileColor: context.accent.withValues(alpha: 0.14),
-      leading: Stack(
-        alignment: Alignment.center,
-        children: [
-          LocalTrackArtwork(file: track.file, size: 45, borderRadius: 8),
-          if (selecting)
-            Positioned.fill(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: selected ? context.accent : Colors.black26,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Icon(
-                  selected ? Icons.check : Icons.circle_outlined,
-                  color: Colors.white,
-                  size: 22,
-                ),
-              ),
-            ),
-        ],
-      ),
+      // La carátula queda siempre a la vista: al seleccionar, la tilde va
+      // a la derecha en vez de tapar la portada.
+      leading: LocalTrackArtwork(file: track.file, size: 45, borderRadius: 8),
       title: Text(
         track.title,
         maxLines: 1,
@@ -72,7 +55,11 @@ class TrackTile extends StatelessWidget {
         style: const TextStyle(fontSize: 12, color: Colors.grey),
       ),
       trailing: selecting
-          ? null
+          ? Icon(
+              selected ? Icons.check_circle : Icons.radio_button_unchecked,
+              color: selected ? context.accent : Colors.grey,
+              size: 30,
+            )
           : TrackMenuButton(file: track.file, onPlay: onTap),
       onTap: onTap,
       onLongPress: onLongPress,
