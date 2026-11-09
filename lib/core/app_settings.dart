@@ -70,26 +70,15 @@ class AppSettings {
   Future<void> setWidgetOpacity(int value) =>
       _box.put('widget_opacity', value.clamp(0, 100));
 
-  /// Los auriculares mandan "siguiente" donde debería ir "anterior".
-  bool get swapHeadsetButtons =>
-      _box.get('swap_headset_buttons', defaultValue: false) == true;
+  /// Dispositivos cuyos botones de siguiente y anterior hay que invertir.
+  /// Se guarda por nombre: el ajuste vale solo con esos auriculares.
+  List<String> get swapButtonDevices => [
+    for (final value in (_box.get('swap_button_devices') as List? ?? const []))
+      value as String,
+  ];
 
-  Future<void> setSwapHeadsetButtons(bool value) =>
-      _box.put('swap_headset_buttons', value);
-
-  /// Última versión cuyas novedades ya se mostraron.
-  int get lastSeenChangelogBuild =>
-      (_box.get('last_seen_changelog') as num?)?.toInt() ?? 0;
-
-  Future<void> setLastSeenChangelogBuild(int value) =>
-      _box.put('last_seen_changelog', value);
-
-  /// Pausar cuando el volumen de multimedia llega a cero.
-  bool get pauseOnZeroVolume =>
-      _box.get('pause_on_zero_volume', defaultValue: true) == true;
-
-  Future<void> setPauseOnZeroVolume(bool value) =>
-      _box.put('pause_on_zero_volume', value);
+  Future<void> setSwapButtonDevices(List<String> value) =>
+      _box.put('swap_button_devices', value);
 
   /// Al darle a reproducir con el volumen en cero, subirlo una rayita.
   bool get raiseVolumeOnPlay =>

@@ -8,6 +8,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/app_settings.dart';
 import 'core/artwork_cache.dart';
 import 'core/audio_service.dart';
+import 'core/audio_outputs.dart';
 import 'core/widget_bridge.dart';
 import 'core/widgets/mini_player.dart';
 import 'features/local/library_screen.dart';
@@ -63,6 +64,7 @@ Future<void> main() async {
   AudioService().startEndWatchdog();
   AudioService().startVolumeWatch();
   LibraryWatcher.instance.start();
+  unawaited(AudioOutputs.instance.start());
   WidgetBridge.attach(AudioService());
 
   final prefs = await SharedPreferences.getInstance();

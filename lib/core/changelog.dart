@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 51,
+      title: 'Invertir botones solo en ciertos auriculares',
+      news: [
+        'La inversión de siguiente y anterior se elige por dispositivo: '
+            'se aplica a los auriculares que la necesitan y el parlante '
+            'bluetooth sigue funcionando normal.',
+      ],
+    ),
+    ChangelogEntry(
       build: 50,
       title: 'La biblioteca se actualiza sola',
       news: [

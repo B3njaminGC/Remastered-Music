@@ -4,7 +4,7 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 
-import 'app_settings.dart';
+import 'audio_outputs.dart';
 
 import '../library/favorites_repository.dart';
 
@@ -127,12 +127,12 @@ class PlayerHandler extends BaseAudioHandler with SeekHandler {
   Future<void> seek(Duration position) => _player.seek(position);
 
   /// Botones del cable o de los auriculares. Algunos modelos mandan
-  /// "siguiente" donde debería ir "anterior": con el ajuste puesto, se
-  /// invierten acá (los de la notificación no se tocan).
+  /// "siguiente" donde debería ir "anterior": se invierten solo con los
+  /// dispositivos elegidos en Ajustes (los de la notificación no se tocan).
   @override
   Future<void> click([MediaButton button = MediaButton.media]) async {
     var pressed = button;
-    if (AppSettings.instance.swapHeadsetButtons) {
+    if (AudioOutputs.instance.shouldSwapButtons) {
       pressed = switch (button) {
         MediaButton.next => MediaButton.previous,
         MediaButton.previous => MediaButton.next,

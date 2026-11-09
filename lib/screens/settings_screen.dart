@@ -14,6 +14,7 @@ import '../theme/theme_controller.dart';
 import 'changelog_screen.dart';
 import 'equalizer_screen.dart';
 import 'folders_screen.dart';
+import 'swap_devices_dialog.dart';
 import '../update/update_checker.dart';
 import '../update/update_prompt.dart';
 import 'support_screen.dart';
@@ -37,7 +38,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late bool _checkUpdates = _settings.checkUpdates;
   late String _widgetStyle = _settings.widgetStyle;
   late double _widgetOpacity = _settings.widgetOpacity.toDouble();
-  late bool _swapHeadset = _settings.swapHeadsetButtons;
+  late List<String> _swapDevices = _settings.swapButtonDevices;
   late bool _pauseOnZero = _settings.pauseOnZeroVolume;
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
   late int _fadeSeconds = _settings.fadeSeconds;
@@ -434,48 +435,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       setState(() => _raiseVolume = value);
                     },
                   ),
-                  SwitchListTile(
-                    secondary: Icon(Icons.swap_horiz, color: context.accent),
+                  ListTile(
+                    leading: Icon(Icons.swap_horiz, color: context.accent),
                     title: const Text('Invertir botones de los auriculares'),
-                    subtitle: const Text(
-                      'Si al tocar dos veces un lado te manda para el otro.',
+                    subtitle: Text(
+                      _swapDevices.isEmpty
+                          ? 'Para los auriculares que mandan siguiente y '
+                                'anterior al revés.'
+                          : 'Invertido en: ${_swapDevices.join(', ')}',
                     ),
-                    value: _swapHeadset,
-                    onChanged: (value) {
-                      _settings.setSwapHeadsetButtons(value);
-                      setState(() => _swapHeadset = value);
-                    },
-                  ),
-                  FutureBuilder<PermissionStatus>(
-                    future: Permission.notification.status,
-                    builder: (context, snapshot) {
-                      final granted = snapshot.data?.isGranted ?? false;
-                      return ListTile(
-                        leading: Icon(
-                          Icons.notifications_active_outlined,
-                          color: context.accent,
-                        ),
-                        title: const Text('Notificación del reproductor'),
-                        subtitle: Text(
-                          granted
-                              ? 'Activada: ves y controlás la canción desde '
-                                    'las notificaciones y la pantalla de bloqueo.'
-                              : 'Desactivada: permitila para ver y controlar la '
-                                    'canción (pausa, siguiente, progreso) desde '
-                                    'las notificaciones.',
-                        ),
-                        trailing: Icon(
-                          granted ? Icons.check_circle : Icons.open_in_new,
-                          color: granted ? Colors.green : null,
-                        ),
-                        onTap: granted
-                            ? null
-                            : () async {
-                                final status = await Permission.notification
-                                    .request();
-                                if (!status.isGranted) await openAppSettings();
-                                if (mounted) setState(() {});
-                              },
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () async {
+                      await showSwapDevicesDialog(context);
+                      if (!mounted) return;
+                      setState(
+                        () => _swapDevices = _settings.swapButtonDevices,
                       );
                     },
                   ),
