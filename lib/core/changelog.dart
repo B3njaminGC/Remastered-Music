@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 49,
+      title: 'La biblioteca se actualiza sola',
+      news: [
+        'Las canciones nuevas aparecen sin tener que recargar: la app revisa '
+            'tus carpetas al volver de otra app y cada tanto mientras la usás.',
+        'Se puede apagar en Ajustes → Biblioteca.',
+      ],
+    ),
+    ChangelogEntry(
       build: 48,
       title: 'Ajustes más ordenados',
       news: [

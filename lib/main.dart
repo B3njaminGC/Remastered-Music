@@ -17,6 +17,7 @@ import 'features/local/search_screen.dart';
 import 'library/favorites_repository.dart';
 import 'library/genre_store.dart';
 import 'library/library_repository.dart';
+import 'library/library_watcher.dart';
 import 'library/play_stats.dart';
 import 'library/track_index.dart';
 import 'lyrics/lyrics_service.dart';
@@ -61,6 +62,7 @@ Future<void> main() async {
   AudioService().startFade();
   AudioService().startEndWatchdog();
   AudioService().startVolumeWatch();
+  LibraryWatcher.instance.start();
   WidgetBridge.attach(AudioService());
 
   final prefs = await SharedPreferences.getInstance();
@@ -156,6 +158,7 @@ class _MainContainerState extends State<MainContainer>
     super.initState();
     _showOnboarding = !widget.seenOnboarding;
     WidgetsBinding.instance.addObserver(this);
+    LibraryWatcher.instance.foundSongs.addListener(_onNewSongs);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (mounted && !_showOnboarding) unawaited(_afterFirstFrame());
     });
@@ -164,7 +167,26 @@ class _MainContainerState extends State<MainContainer>
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    LibraryWatcher.instance.foundSongs.removeListener(_onNewSongs);
     super.dispose();
+  }
+
+  /// Aviso discreto cuando aparecieron canciones nuevas en el teléfono.
+  void _onNewSongs() {
+    final count = LibraryWatcher.instance.foundSongs.value;
+    if (count <= 0 || !mounted) return;
+    LibraryWatcher.instance.foundSongs.value = 0;
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text(
+            count == 1
+                ? 'Se agregó 1 canción nueva.'
+                : 'Se agregaron $count canciones nuevas.',
+          ),
+        ),
+      );
   }
 
   @override

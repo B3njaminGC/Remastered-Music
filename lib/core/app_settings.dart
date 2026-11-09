@@ -77,6 +77,11 @@ class AppSettings {
   Future<void> setSwapHeadsetButtons(bool value) =>
       _box.put('swap_headset_buttons', value);
 
+  /// Buscar canciones nuevas solo, sin tener que recargar a mano.
+  bool get autoScan => _box.get('auto_scan', defaultValue: true) == true;
+
+  Future<void> setAutoScan(bool value) => _box.put('auto_scan', value);
+
   /// Última versión cuyas novedades ya se mostraron.
   int get lastSeenChangelogBuild =>
       (_box.get('last_seen_changelog') as num?)?.toInt() ?? 0;

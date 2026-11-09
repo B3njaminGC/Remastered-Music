@@ -8,6 +8,7 @@ import '../core/app_settings.dart';
 import '../core/audio_service.dart';
 import '../features/local/library_actions.dart';
 import '../library/library_repository.dart';
+import '../library/library_watcher.dart';
 import '../library/track_index.dart';
 import '../core/widget_bridge.dart';
 import '../theme/theme_controller.dart';
@@ -38,6 +39,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   late String _widgetStyle = _settings.widgetStyle;
   late double _widgetOpacity = _settings.widgetOpacity.toDouble();
   late bool _swapHeadset = _settings.swapHeadsetButtons;
+  late bool _autoScan = _settings.autoScan;
   late bool _pauseOnZero = _settings.pauseOnZeroVolume;
   late bool _raiseVolume = _settings.raiseVolumeOnPlay;
   late int _fadeSeconds = _settings.fadeSeconds;
@@ -580,6 +582,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     await scanDeviceMusicWithFeedback(context);
                     if (!mounted) return;
                     setState(() => _includedFolders = _settings.includedFolders);
+                  },
+                ),
+                SwitchListTile(
+                  secondary: Icon(
+                    Icons.auto_mode,
+                    color: context.accent,
+                  ),
+                  title: const Text('Detectar canciones nuevas solo'),
+                  subtitle: const Text(
+                    'Revisa tus carpetas al volver a la app y cada tanto '
+                    'mientras la usás.',
+                  ),
+                  value: _autoScan,
+                  activeThumbColor: context.accent,
+                  onChanged: (value) {
+                    _settings.setAutoScan(value);
+                    setState(() => _autoScan = value);
+                    if (value) unawaited(LibraryWatcher.instance.check(force: true));
                   },
                 ),
                 ListTile(
