@@ -80,6 +80,20 @@ class AppSettings {
   Future<void> setSwapButtonDevices(List<String> value) =>
       _box.put('swap_button_devices', value);
 
+  /// Última versión cuyas novedades ya se mostraron.
+  int get lastSeenChangelogBuild =>
+      (_box.get('last_seen_changelog') as num?)?.toInt() ?? 0;
+
+  Future<void> setLastSeenChangelogBuild(int value) =>
+      _box.put('last_seen_changelog', value);
+
+  /// Pausar cuando el volumen de multimedia llega a cero.
+  bool get pauseOnZeroVolume =>
+      _box.get('pause_on_zero_volume', defaultValue: true) == true;
+
+  Future<void> setPauseOnZeroVolume(bool value) =>
+      _box.put('pause_on_zero_volume', value);
+
   /// Al darle a reproducir con el volumen en cero, subirlo una rayita.
   bool get raiseVolumeOnPlay =>
       _box.get('raise_volume_on_play', defaultValue: true) == true;
