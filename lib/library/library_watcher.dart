@@ -29,6 +29,9 @@ class LibraryWatcher with WidgetsBindingObserver {
       const Duration(minutes: 2),
       (_) => unawaited(check()),
     );
+    // Apenas abre: lo que bajaste mientras la app estaba cerrada ya tiene
+    // que estar ahí, sin esperar al primer repaso.
+    unawaited(check(force: true));
   }
 
   @override
@@ -38,7 +41,7 @@ class LibraryWatcher with WidgetsBindingObserver {
 
   /// Revisa las carpetas. [force] saltea la espera mínima entre revisiones.
   Future<void> check({bool force = false}) async {
-    if (_running || !AppSettings.instance.autoScan) return;
+    if (_running) return;
     if (!force &&
         DateTime.now().difference(_last) < const Duration(seconds: 8)) {
       return;
