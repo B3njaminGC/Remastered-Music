@@ -47,6 +47,7 @@ class GroupsTab extends StatelessWidget {
           );
         }
         final list = ListView.builder(
+          padding: const EdgeInsets.only(bottom: 96),
           itemCount: groups.length,
           itemExtent: 72,
           itemBuilder: (context, i) {

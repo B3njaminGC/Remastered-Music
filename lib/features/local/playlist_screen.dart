@@ -26,6 +26,7 @@ class PlaylistLibraryScreen extends StatelessWidget {
       builder: (context, box, _) {
         final names = box.keys.whereType<String>().toList()..sort();
         return ListView.builder(
+          padding: const EdgeInsets.only(bottom: 96),
           itemCount: names.length + 1,
           itemBuilder: (context, position) {
             if (position == 0) {

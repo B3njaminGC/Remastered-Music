@@ -40,6 +40,40 @@ class _LibraryScreenState extends State<LibraryScreen>
     super.dispose();
   }
 
+  /// Menú del botón +: crear una lista o traer una de otro reproductor.
+  void _showPlaylistActions(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: Icon(Icons.playlist_add, color: context.accent),
+              title: const Text('Crear lista'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                showCreatePlaylistDialog(context);
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons.file_download_outlined,
+                color: context.accent,
+              ),
+              title: const Text('Importar lista (.m3u)'),
+              subtitle: const Text('Traé una lista de otro reproductor.'),
+              onTap: () {
+                Navigator.of(sheetContext).pop();
+                importM3uPlaylist(context);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -64,27 +98,15 @@ class _LibraryScreenState extends State<LibraryScreen>
           ],
         ),
       ),
+      // Un solo botón: dos tapaban el menú ⋮ de las listas de abajo.
       floatingActionButton: _tabController.index == _playlistsTab
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                FloatingActionButton.small(
-                  heroTag: null,
-                  onPressed: () => importM3uPlaylist(context),
-                  tooltip: 'Importar lista (.m3u)',
-                  child: const Icon(Icons.file_download_outlined),
-                ),
-                const SizedBox(height: 12),
-                FloatingActionButton(
-                  heroTag: null,
-                  onPressed: () => showCreatePlaylistDialog(context),
-                  backgroundColor: context.accent,
-                  foregroundColor: Colors.white,
-                  tooltip: 'Crear lista',
-                  child: const Icon(Icons.add),
-                ),
-              ],
+          ? FloatingActionButton(
+              heroTag: null,
+              onPressed: () => _showPlaylistActions(context),
+              backgroundColor: context.accent,
+              foregroundColor: Colors.white,
+              tooltip: 'Nueva lista o importar',
+              child: const Icon(Icons.add),
             )
           : _tabController.index == _genresTab
           ? FloatingActionButton(

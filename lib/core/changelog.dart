@@ -29,6 +29,15 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 54,
+      title: 'El botón + ya no tapa nada',
+      fixes: [
+        'En Listas había dos botones flotantes que quedaban encima del menú '
+            'de las listas. Ahora es uno solo y adentro están crear e '
+            'importar.',
+      ],
+    ),
+    ChangelogEntry(
       build: 53,
       title: 'El aleatorio y el bucle se quedan puestos',
       news: [
