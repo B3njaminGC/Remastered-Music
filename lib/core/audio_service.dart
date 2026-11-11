@@ -88,6 +88,16 @@ class AudioService {
 
   /// Orden de la cola antes de mezclar, para poder volver a él.
   List<File>? _orderBeforeShuffle;
+
+  /// Deja guardado el aleatorio y el orden original, para que al volver a
+  /// entrar quede como estaba.
+  Future<void> _persistShuffle() async {
+    final settings = AppSettings.instance;
+    await settings.setShuffleOn(shuffleNotifier.value);
+    await settings.setQueueBeforeShuffle([
+      for (final file in _orderBeforeShuffle ?? const <File>[]) file.path,
+    ]);
+  }
   final ValueNotifier<LoopMode> loopNotifier = ValueNotifier<LoopMode>(
     LoopMode.off,
   );
@@ -311,6 +321,19 @@ class AudioService {
           if (File(path).existsSync()) File(path),
       ];
       if (files.isEmpty) return;
+      // El aleatorio y el bucle quedan como los dejaste. La cola guardada
+      // ya está mezclada, así que solo hay que volver a encender la opción.
+      shuffleNotifier.value = settings.shuffleOn;
+      _orderBeforeShuffle = settings.shuffleOn
+          ? [for (final path in settings.queueBeforeShuffle) File(path)]
+          : null;
+      final loop = switch (settings.loopMode) {
+        'all' => LoopMode.all,
+        'one' => LoopMode.one,
+        _ => LoopMode.off,
+      };
+      loopNotifier.value = loop;
+
       final savedIndex = settings.lastIndex;
       final savedPath = savedIndex >= 0 && savedIndex < paths.length
           ? paths[savedIndex]
@@ -328,6 +351,7 @@ class AudioService {
             : Duration.zero,
         autoplay: false,
       );
+      await _player.setLoopMode(loop);
     } catch (error) {
       debugPrint('No se pudo retomar la última sesión: $error');
     }
@@ -425,6 +449,7 @@ class AudioService {
     shuffleNotifier.value = true;
     _orderBeforeShuffle = List<File>.of(files);
     await setPlaylistAndPlay(List<File>.of(files)..shuffle(math.Random()), 0);
+    await _persistShuffle();
   }
 
   /// Pone [file] justo después de la pista actual.
@@ -620,6 +645,7 @@ class AudioService {
     await _player.setShuffleModeEnabled(false);
     if (_queue.length < 2) {
       if (!enabled) _orderBeforeShuffle = null;
+      await _persistShuffle();
       return;
     }
     final current = _currentIndex >= 0 && _currentIndex < _queue.length
@@ -660,6 +686,7 @@ class AudioService {
       position: _player.position,
       autoplay: _player.playing,
     );
+    await _persistShuffle();
   }
 
   Future<void> toggleLoop() async {
@@ -670,6 +697,7 @@ class AudioService {
     };
     await _player.setLoopMode(nextMode);
     loopNotifier.value = nextMode;
+    await AppSettings.instance.setLoopMode(nextMode.name);
   }
 
   Future<void> setSpeed(double speed) async {

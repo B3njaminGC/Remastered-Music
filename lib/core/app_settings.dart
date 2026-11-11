@@ -80,6 +80,25 @@ class AppSettings {
   Future<void> setSwapButtonDevices(List<String> value) =>
       _box.put('swap_button_devices', value);
 
+  /// Aleatorio y bucle, para dejarlos como estaban al volver a entrar.
+  bool get shuffleOn => _box.get('shuffle_on', defaultValue: false) == true;
+
+  Future<void> setShuffleOn(bool value) => _box.put('shuffle_on', value);
+
+  /// 'off' | 'all' | 'one'.
+  String get loopMode => (_box.get('loop_mode') as String?) ?? 'off';
+
+  Future<void> setLoopMode(String value) => _box.put('loop_mode', value);
+
+  /// Orden de la cola antes de mezclar, para poder volver a él.
+  List<String> get queueBeforeShuffle => [
+    for (final value in (_box.get('queue_before_shuffle') as List? ?? const []))
+      value as String,
+  ];
+
+  Future<void> setQueueBeforeShuffle(List<String> value) =>
+      _box.put('queue_before_shuffle', value);
+
   /// Última versión cuyas novedades ya se mostraron.
   int get lastSeenChangelogBuild =>
       (_box.get('last_seen_changelog') as num?)?.toInt() ?? 0;

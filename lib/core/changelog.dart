@@ -29,6 +29,14 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 53,
+      title: 'El aleatorio y el bucle se quedan puestos',
+      news: [
+        'Al volver a entrar, el aleatorio y el bucle siguen como los '
+            'dejaste. Antes arrancaban siempre apagados.',
+      ],
+    ),
+    ChangelogEntry(
       build: 51,
       title: 'Invertir botones solo en ciertos auriculares',
       news: [
