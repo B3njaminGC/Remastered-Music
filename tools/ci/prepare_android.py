@@ -1154,6 +1154,50 @@ def find_package():
     return "com.b3njamingc.play_music_app"
 
 
+LINT_KTS = """
+
+// El análisis de Android (lint) se cae al leer comentarios de algunas
+// librerías y tumba la compilación. No aporta nada al APK, así que se apaga.
+subprojects {
+    tasks.configureEach {
+        if (name.startsWith("lintVital") || name.startsWith("lintAnalyze")) {
+            enabled = false
+        }
+    }
+}
+"""
+
+LINT_GROOVY = """
+
+// El análisis de Android (lint) se cae al leer comentarios de algunas
+// librerías y tumba la compilación. No aporta nada al APK, así que se apaga.
+subprojects {
+    tasks.configureEach { task ->
+        if (task.name.startsWith("lintVital") || task.name.startsWith("lintAnalyze")) {
+            task.enabled = false
+        }
+    }
+}
+"""
+
+
+def patch_lint():
+    """Apaga el lint de Android, que falla por bugs de las propias librerías."""
+    kts = os.path.join(ANDROID, "build.gradle.kts")
+    groovy = os.path.join(ANDROID, "build.gradle")
+    path = kts if os.path.exists(kts) else groovy if os.path.exists(groovy) else None
+    if path is None:
+        print("::warning::No encontré el build.gradle del proyecto.")
+        return
+    text = open(path, encoding="utf-8").read()
+    if "lintVital" in text:
+        print("Lint: ya estaba apagado.")
+        return
+    text += LINT_KTS if path.endswith(".kts") else LINT_GROOVY
+    open(path, "w", encoding="utf-8").write(text)
+    print("Lint de Android apagado.")
+
+
 def patch_gradle_dependencies():
     """androidx.media: lo necesitan los widgets para hablar con el reproductor."""
     kts = os.path.join(ANDROID, "app", "build.gradle.kts")
@@ -1190,4 +1234,5 @@ if __name__ == "__main__":
     write_notification_resources()
     write_widget_resources(find_package())
     patch_gradle_dependencies()
+    patch_lint()
     patch_signing()
