@@ -1,0 +1,12 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Problema de seguridad
+    url: https://github.com/B3njaminGC/Resonar/security/advisories/new
+    about: >-
+      No lo publiques en un issue. Este canal es privado entre vos y quien
+      mantiene el proyecto.
+  - name: Dudas de uso
+    url: https://github.com/B3njaminGC/Resonar/blob/main/README.md
+    about: >-
+      Cómo instalar, cómo actualizar y qué limitaciones tiene la app están en
+      el README.

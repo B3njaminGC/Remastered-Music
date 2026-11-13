@@ -1,0 +1,75 @@
+name: Reportar un fallo
+description: Algo no funciona, se ve mal o la app se cierra.
+title: '[Fallo]: '
+labels: ['fallo']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Cuanto más concreto seas, más rápido se arregla.
+
+        **Antes de empezar:** fijate si ya hay un
+        [issue abierto](https://github.com/B3njaminGC/Resonar/issues) sobre lo mismo.
+        Si lo hay, sumá tu caso ahí en vez de abrir uno nuevo.
+
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: Qué pasó
+      description: Contá qué esperabas que pasara y qué pasó en su lugar.
+      placeholder: |
+        Esperaba que al tocar siguiente sonara la próxima canción,
+        pero se quedó en silencio y la barra volvió al principio.
+    validations:
+      required: true
+
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Cómo repetirlo
+      description: Los pasos para que vuelva a pasar, uno por renglón.
+      placeholder: |
+        1. Abrir la app y poner una lista en aleatorio
+        2. Bloquear la pantalla
+        3. Tocar siguiente desde la notificación
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Versión de la app
+      description: 'Está en Ajustes → Acerca de → Qué hay de nuevo.'
+      placeholder: 'build 57'
+    validations:
+      required: true
+
+  - type: input
+    id: telefono
+    attributes:
+      label: Teléfono y versión de Android
+      placeholder: 'Xiaomi Redmi Note 13, Android 14'
+    validations:
+      required: true
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Algo más que ayude
+      description: |
+        Capturas, un video, o las líneas del error si sacaste el registro
+        del sistema.
+
+        **Ojo con lo que pegás:** el registro suele incluir rutas y nombres
+        de tus archivos, y a veces la lista de apps que tenés instaladas.
+        Pegá solo las líneas del error y borrá lo que no quieras hacer
+        público.
+      placeholder: 'Opcional'
+
+  - type: checkboxes
+    id: privacidad
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: Revisé que no estoy publicando datos personales míos ni de terceros.
+          required: true

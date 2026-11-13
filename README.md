@@ -136,6 +136,16 @@ Para compilar, firmar y publicar una versión: [`docs/desarrollo.md`](docs/desar
 Para proponer cambios: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 Historial de versiones: [`CHANGELOG.md`](CHANGELOG.md).
 
+## Reportar un fallo o sugerir algo
+
+Desde [**Issues**](https://github.com/B3njaminGC/Resonar/issues/new/choose) hay
+un formulario para cada cosa: uno para fallos y otro para sugerencias. Pedí
+prestado un minuto para completarlos bien, que es lo que hace la diferencia
+entre "no me anda" y un problema que se puede arreglar.
+
+Si encontrás un problema de seguridad, no abras un issue:
+[escribí en privado](https://github.com/B3njaminGC/Resonar/security/advisories/new).
+
 ## Licencia
 
 [MIT](LICENSE)

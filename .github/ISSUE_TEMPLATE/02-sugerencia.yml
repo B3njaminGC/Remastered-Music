@@ -1,0 +1,48 @@
+name: Sugerir algo
+description: Una función nueva o una mejora a algo que ya existe.
+title: '[Sugerencia]: '
+labels: ['sugerencia']
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Las ideas son bienvenidas. Tené en cuenta que Resonar es un
+        reproductor **sin conexión**: no descarga música ni tiene catálogo
+        propio, así que las sugerencias que dependan de eso quedan afuera.
+
+  - type: textarea
+    id: idea
+    attributes:
+      label: Qué te gustaría que haga
+      placeholder: |
+        Poder ordenar una lista por duración, para armar mezclas que entren
+        justo en un viaje.
+    validations:
+      required: true
+
+  - type: textarea
+    id: para-que
+    attributes:
+      label: Para qué te serviría
+      description: |
+        Contá el problema que querés resolver, no solo la solución. A veces
+        hay una forma más simple de llegar a lo mismo.
+      placeholder: |
+        Hoy tengo que ir sumando canciones y mirando el reloj a ojo.
+    validations:
+      required: true
+
+  - type: input
+    id: build
+    attributes:
+      label: Versión de la app
+      description: 'Por si ya está resuelto en una más nueva. Ajustes → Qué hay de nuevo.'
+      placeholder: 'build 57'
+
+  - type: checkboxes
+    id: revisado
+    attributes:
+      label: Antes de enviar
+      options:
+        - label: Busqué entre los issues abiertos y no encontré la misma idea.
+          required: true
