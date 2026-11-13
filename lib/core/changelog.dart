@@ -29,6 +29,13 @@ class Changelog {
   /// De la más nueva a la más vieja.
   static const List<ChangelogEntry> entries = [
     ChangelogEntry(
+      build: 57,
+      title: 'El repositorio pasó a llamarse Resonar',
+      fixes: [
+        'El aviso de versión nueva apuntaba al nombre viejo del repositorio.',
+      ],
+    ),
+    ChangelogEntry(
       build: 54,
       title: 'El botón + ya no tapa nada',
       fixes: [

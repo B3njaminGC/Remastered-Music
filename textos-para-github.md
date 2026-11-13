@@ -23,7 +23,7 @@ Reproductor de música offline para Android, hecho en Flutter.
 En el mismo panel conviene:
 
 - **Website:** dejarlo vacío (no hay sitio) o poner el link a Releases:
-  `https://github.com/B3njaminGC/Remastered-Music/releases/latest`
+  `https://github.com/B3njaminGC/Resonar/releases/latest`
 - Tildar **Releases** para que se vean en la portada.
 - Destildar **Packages** y **Deployments**, que no se usan.
 

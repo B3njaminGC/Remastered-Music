@@ -35,7 +35,7 @@ class UpdateChecker {
   static final UpdateChecker instance = UpdateChecker._();
 
   static const String owner = 'B3njaminGC';
-  static const String repo = 'Remastered-Music';
+  static const String repo = 'Resonar';
 
   /// Build instalado: el workflow lo pasa con `--dart-define=BUILD_NUMBER=N`
   /// (el mismo N del versionCode). En compilaciones locales vale 0.

@@ -3,7 +3,7 @@
 Formato basado en [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/).
 
 Las versiones publicadas se numeran por compilación (`build-N`), que es lo que
-aparece en los [releases](https://github.com/B3njaminGC/Remastered-Music/releases)
+aparece en los [releases](https://github.com/B3njaminGC/Resonar/releases)
 y en *Ajustes → Qué hay de nuevo* dentro de la app. Entre paréntesis va la
 versión de la app.
 

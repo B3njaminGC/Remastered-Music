@@ -53,7 +53,7 @@ de abrir un issue: un issue público lo deja aún más a la vista.
 
 ## Reportar un fallo
 
-Abrí un [issue](https://github.com/B3njaminGC/Remastered-Music/issues) contando:
+Abrí un [issue](https://github.com/B3njaminGC/Resonar/issues) contando:
 
 - qué esperabas y qué pasó;
 - los pasos para que vuelva a pasar;
@@ -68,7 +68,7 @@ del error.
 ## Reportar un problema de seguridad
 
 **No abras un issue.** Escribí en privado por
-[GitHub Security Advisories](https://github.com/B3njaminGC/Remastered-Music/security/advisories/new),
+[GitHub Security Advisories](https://github.com/B3njaminGC/Resonar/security/advisories/new),
 que es un canal cerrado entre vos y quien mantiene el proyecto.
 
 Contá qué encontraste y cómo reproducirlo, sin incluir datos personales tuyos ni

@@ -7,11 +7,11 @@
 **Reproductor de música para Android, sin conexión.**
 Reproduce los archivos que ya tenés en el teléfono.
 
-[![Verificación](https://github.com/B3njaminGC/Remastered-Music/actions/workflows/verify.yml/badge.svg)](https://github.com/B3njaminGC/Remastered-Music/actions/workflows/verify.yml)
-[![Build APK](https://github.com/B3njaminGC/Remastered-Music/actions/workflows/build-apk.yml/badge.svg)](https://github.com/B3njaminGC/Remastered-Music/actions/workflows/build-apk.yml)
+[![Verificación](https://github.com/B3njaminGC/Resonar/actions/workflows/verify.yml/badge.svg)](https://github.com/B3njaminGC/Resonar/actions/workflows/verify.yml)
+[![Build APK](https://github.com/B3njaminGC/Resonar/actions/workflows/build-apk.yml/badge.svg)](https://github.com/B3njaminGC/Resonar/actions/workflows/build-apk.yml)
 [![Licencia: MIT](https://img.shields.io/badge/licencia-MIT-green.svg)](LICENSE)
 
-[**⬇ Descargar la última versión**](https://github.com/B3njaminGC/Remastered-Music/releases/latest)
+[**⬇ Descargar la última versión**](https://github.com/B3njaminGC/Resonar/releases/latest)
 
 </div>
 
@@ -70,7 +70,7 @@ le indiques y arma la biblioteca con las etiquetas de cada archivo.
 
 ## Instalación
 
-1. Abrí [**Releases**](https://github.com/B3njaminGC/Remastered-Music/releases/latest)
+1. Abrí [**Releases**](https://github.com/B3njaminGC/Resonar/releases/latest)
    desde el celular y descargá el archivo `Resonar-build-N.apk`.
 2. Abrilo y permití instalar desde ese navegador si Android lo pide.
 3. La primera vez, dale permiso para leer tu música y para mostrar
