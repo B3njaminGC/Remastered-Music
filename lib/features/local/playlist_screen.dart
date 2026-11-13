@@ -10,7 +10,6 @@ import '../../library/favorites_repository.dart';
 import '../../library/track_index.dart';
 import '../../theme/accent.dart';
 import 'genre_dialogs.dart';
-import 'playlist_dialogs.dart';
 import 'playlist_service.dart';
 import 'playlist_transfer.dart';
 import 'smart_lists.dart';

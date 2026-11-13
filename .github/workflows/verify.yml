@@ -29,9 +29,11 @@ jobs:
 
       - run: flutter pub get
 
-      # El analizador es la barrera: si marca un error, no pasa.
+      # Barrera: frena por errores y advertencias. Los avisos informativos
+      # no frenan nada (hoy son sobre todo deprecaciones de Flutter que
+      # habría que migrar aparte).
       - name: Análisis estático
-        run: flutter analyze
+        run: flutter analyze --no-fatal-infos
 
       # Informativo: el código todavía no está pasado por dart format.
       - name: Formato (informativo)
